@@ -14,7 +14,10 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->boolean('must_change_password')->default(false);
         });
-        \Illuminate\Support\Facades\DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'staff', 'customer', 'root', 'superadmin', 'manager', 'inventory') DEFAULT 'customer'");
+        
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'staff', 'customer', 'root', 'superadmin', 'manager', 'inventory') DEFAULT 'customer'");
+        }
     }
 
     /**
@@ -25,6 +28,9 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn('must_change_password');
         });
-        \Illuminate\Support\Facades\DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'staff', 'customer') DEFAULT 'customer'");
+        
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'staff', 'customer') DEFAULT 'customer'");
+        }
     }
 };
