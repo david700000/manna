@@ -1,0 +1,348 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Product;
+use App\Models\Category;
+use App\Models\Order;
+use App\Models\User;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\OrderStatusUpdate;
+use App\Notifications\MarketingOffer;
+
+class AdminController extends Controller
+{
+    public function __construct()
+    {
+        if (env('CLOUDINARY_URL')) {
+            \Cloudinary\Configuration\Configuration::instance(env('CLOUDINARY_URL'));
+        }
+    }
+
+    private function uploadImage($file, $folder)
+    {
+        if (env('CLOUDINARY_URL')) {
+            $upload = new \Cloudinary\Api\Upload\UploadApi();
+            $result = $upload->upload($file->getRealPath(), ['folder' => $folder]);
+            return $result['secure_url'];
+        }
+        // Fallback to local storage
+        $path = $file->store($folder, 'public');
+        return '/storage/' . $path;
+    }
+
+    public function storeProduct(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric',
+            'stock' => 'required|integer',
+            'status' => 'required|in:active,draft,archived',
+            'category_id' => 'nullable|exists:categories,id',
+            'images' => 'nullable|array',
+            'images.*' => 'image|max:5120'
+        ]);
+
+        $imagePaths = [];
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $imagePaths[] = $this->uploadImage($image, 'products');
+            }
+        }
+
+        $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
+        $validated['images'] = json_encode($imagePaths);
+
+        $product = Product::create($validated);
+
+        return response()->json($product, 201);
+    }
+
+    public function updateProduct(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+        
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'sometimes|required|numeric',
+            'stock' => 'sometimes|required|integer',
+            'status' => 'sometimes|required|in:active,draft,archived',
+            'category_id' => 'nullable|exists:categories,id',
+            'existing_images' => 'nullable|array', // URLs to keep
+            'images' => 'nullable|array', // New images
+            'images.*' => 'image|max:5120'
+        ]);
+
+        $imagePaths = $request->input('existing_images', []);
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $imagePaths[] = $this->uploadImage($image, 'products');
+            }
+        }
+
+        if (isset($validated['name']) && $validated['name'] !== $product->name) {
+            $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
+        }
+
+        $validated['images'] = json_encode($imagePaths);
+        $product->update($validated);
+
+        return response()->json($product);
+    }
+
+    public function destroyProduct($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->delete();
+        return response()->json(['message' => 'Product deleted']);
+    }
+
+    // --- Category Management ---
+    public function storeCategory(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'sort_order' => 'integer|default:0'
+        ]);
+
+        $validated['slug'] = Str::slug($validated['name']);
+        
+        $category = Category::create($validated);
+        return response()->json($category, 201);
+    }
+
+    public function updateCategory(Request $request, $id)
+    {
+        $category = Category::findOrFail($id);
+        
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+            'sort_order' => 'integer'
+        ]);
+
+        if (isset($validated['name']) && $validated['name'] !== $category->name) {
+            $validated['slug'] = Str::slug($validated['name']);
+        }
+
+        $category->update($validated);
+        return response()->json($category);
+    }
+
+    public function destroyCategory($id)
+    {
+        $category = Category::findOrFail($id);
+        $category->delete();
+        return response()->json(['message' => 'Category deleted']);
+    }
+
+    // --- Order Management ---
+    public function indexOrders(Request $request)
+    {
+        $orders = Order::with('user', 'items.product')->latest()->get();
+        return response()->json($orders);
+    }
+
+    public function updateOrderStatus(Request $request, $id)
+    {
+        $order = Order::findOrFail($id);
+        
+        $validated = $request->validate([
+            'status' => 'required|in:pending,processing,shipped,delivered,cancelled,paid',
+        ]);
+
+        $oldStatus = $order->status;
+        $order->update($validated);
+
+        if ($oldStatus !== $order->status) {
+            try { (new OrderStatusUpdate($order))->send($order->user); } catch (\Throwable $e) {}
+        }
+
+        return response()->json($order);
+    }
+
+    // --- Users ---
+    public function indexUsers()
+    {
+        $users = \App\Models\User::orderBy('created_at', 'desc')->get();
+        return response()->json($users);
+    }
+
+    public function destroyUser($id)
+    {
+        $user = \App\Models\User::findOrFail($id);
+        
+        // Prevent deleting oneself
+        if ($user->id === auth()->id()) {
+            return response()->json(['message' => 'You cannot delete yourself.'], 403);
+        }
+
+        // Prevent deleting root users unless the requester is also root
+        if ($user->role === 'root' && auth()->user()->role !== 'root') {
+            return response()->json(['message' => 'You cannot delete a root admin.'], 403);
+        }
+
+        $user->delete();
+        return response()->json(['message' => 'User deleted successfully']);
+    }
+
+    // --- Banners ---
+    public function storeBanner(Request $request)
+    {
+        $validated = $request->validate([
+            'title'    => 'required|string|max:255',
+            'subtitle' => 'nullable|string',
+            'image'    => 'nullable|file|image|max:5120',
+            'start'    => 'nullable|date',
+            'end'      => 'nullable|date',
+            'status'   => 'in:active,draft',
+        ]);
+
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->uploadImage($request->file('image'), 'banners');
+        }
+
+        $banner = \App\Models\Banner::create([
+            'title'      => $validated['title'],
+            'subtitle'   => $validated['subtitle'] ?? null,
+            'image_url'  => $imageUrl,
+            'status'     => $validated['status'] ?? 'active',
+            'start_date' => $validated['start'] ?? null,
+            'end_date'   => $validated['end'] ?? null,
+        ]);
+        return response()->json($banner, 201);
+    }
+
+    public function updateBanner(Request $request, $id)
+    {
+        $banner = \App\Models\Banner::findOrFail($id);
+        $data = $request->only(['title', 'subtitle', 'status']);
+        if ($request->has('start')) $data['start_date'] = $request->start;
+        if ($request->has('end')) $data['end_date'] = $request->end;
+        
+        if ($request->hasFile('image')) {
+            $data['image_url'] = $this->uploadImage($request->file('image'), 'banners');
+        }
+        $banner->update($data);
+        return response()->json($banner);
+    }
+
+    public function destroyBanner($id)
+    {
+        \App\Models\Banner::destroy($id);
+        return response()->json(['message' => 'deleted']);
+    }
+
+    // --- Hero Slides ---
+    public function storeHeroSlide(Request $request)
+    {
+        $validated = $request->validate([
+            'title'    => 'required|string|max:255',
+            'subtitle' => 'nullable|string',
+            'image'    => 'nullable|file|image|max:5120',
+            'badge'    => 'nullable|string',
+            'cta'      => 'nullable|string',
+            'dark'     => 'boolean',
+        ]);
+
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->uploadImage($request->file('image'), 'hero-slides');
+        }
+
+        $slide = \App\Models\HeroSlide::create([
+            'title'      => $validated['title'],
+            'subtitle'   => $validated['subtitle'] ?? null,
+            'image_url'  => $imageUrl,
+            'badge'      => $validated['badge'] ?? null,
+            'cta_text'   => $validated['cta'] ?? null,
+            'is_dark'    => $validated['dark'] ?? false,
+            'sort_order' => 0,
+        ]);
+        return response()->json($slide, 201);
+    }
+
+    public function updateHeroSlide(Request $request, $id)
+    {
+        $slide = \App\Models\HeroSlide::findOrFail($id);
+        $data = $request->only(['title', 'subtitle', 'badge', 'cta_text', 'is_dark', 'sort_order']);
+        if ($request->hasFile('image')) {
+            $data['image_url'] = $this->uploadImage($request->file('image'), 'hero-slides');
+        }
+        $slide->update($data);
+        return response()->json($slide);
+    }
+
+    public function destroyHeroSlide($id)
+    {
+        \App\Models\HeroSlide::destroy($id);
+        return response()->json(['message' => 'deleted']);
+    }
+
+    // --- Theme ---
+    public function updateTheme(Request $request)
+    {
+        $validated = $request->validate([
+            'theme_colors' => 'required|string',
+        ]);
+        $setting = \App\Models\Setting::firstOrNew(['key' => 'theme_colors']);
+        $setting->value = $validated['theme_colors'];
+        $setting->save();
+        return response()->json(['message' => 'Theme updated']);
+    }
+
+    // --- Marketing ---
+    public function broadcastOffer(Request $request)
+    {
+        $validated = $request->validate([
+            'subject' => 'required|string|max:255',
+            'message' => 'required|string',
+        ]);
+
+        $users = User::all();
+        $notification = new MarketingOffer($validated);
+        foreach ($users as $user) {
+            try { $notification->send($user); } catch (\Throwable $e) {}
+        }
+
+        return response()->json(['message' => 'Marketing offer sent to ' . $users->count() . ' users.']);
+    }
+
+    public function storeUser(Request $request)
+    {
+        $validated = $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'role'  => 'required|in:superadmin,manager,staff,inventory',
+        ]);
+
+        $tempPassword = \Illuminate\Support\Str::random(12);
+
+        $user = User::create([
+            'name'                 => htmlspecialchars(strip_tags(trim($validated['name'])), ENT_QUOTES, 'UTF-8'),
+            'email'                => strtolower(trim($validated['email'])),
+            'password'             => $tempPassword,
+            'role'                 => $validated['role'],
+            'must_change_password' => true,
+        ]);
+
+        try {
+            (new \App\Notifications\AdminInvitationNotification($tempPassword))->send($user);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admin invitation email failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'User created but email failed: ' . $e->getMessage()], 500);
+        }
+
+        return response()->json([
+            'user'    => $user,
+            'message' => 'User invited successfully. Login credentials have been sent to ' . $user->email,
+        ], 201);
+    }
+}
