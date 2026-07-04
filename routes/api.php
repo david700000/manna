@@ -23,13 +23,16 @@ Route::post('/webhooks/paystack', [\App\Http\Controllers\PaymentController::clas
 
 // Temporary route to fix root password on live server
 Route::get('/fix-root-password', function () {
-    $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
-    if ($user) {
-        $user->password = \Illuminate\Support\Facades\Hash::make('admin');
-        $user->save();
-        return 'Password fixed!';
-    }
-    return 'User not found.';
+    \App\Models\User::updateOrCreate(
+        ['email' => 'david07israel@gmail.com'],
+        [
+            'name' => 'Root Admin',
+            'password' => \Illuminate\Support\Facades\Hash::make('admin'),
+            'role' => 'root',
+            'must_change_password' => true,
+        ]
+    );
+    return 'User created and password fixed! You can now log in.';
 });
 
 Route::middleware('auth:sanctum')->group(function () {
