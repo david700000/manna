@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
             ['email' => 'david07israel@gmail.com'],
             [
                 'name' => 'Root Admin',
-                'password' => 'admin',
+                'password' => \Illuminate\Support\Facades\Hash::make('admin'),
                 'role' => 'root',
                 'must_change_password' => true,
             ]
