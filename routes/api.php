@@ -44,12 +44,23 @@ Route::get('/fix-root-password', function () {
 });
 
 // Temporary debug route
-Route::get('/test-login', function () {
-    $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
-    if (!$user) return 'User not found';
-    
-    $check = \Illuminate\Support\Facades\Hash::check('admin', $user->password);
-    return 'Hash check: ' . ($check ? 'SUCCESS' : 'FAILED') . ' | DB Hash: ' . $user->password . ' | Email: ' . $user->email;
+Route::get('/test-login', function (Illuminate\Http\Request $request) {
+    try {
+        $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
+        if (!$user) return 'User not found';
+        
+        $check = \Illuminate\Support\Facades\Hash::check('admin', $user->password);
+        if (!$check) return 'Hash check failed';
+
+        // Simulate login success steps
+        \Illuminate\Support\Facades\RateLimiter::clear('test:123');
+        $user->tokens()->delete();
+        $token = $user->createToken('auth_token')->plainTextToken;
+        
+        return 'SUCCESS! Token generated: ' . substr($token, 0, 10) . '...';
+    } catch (\Exception $e) {
+        return 'CRASH DURING LOGIN: ' . $e->getMessage() . ' at line ' . $e->getLine();
+    }
 });
 
 Route::middleware('auth:sanctum')->group(function () {
