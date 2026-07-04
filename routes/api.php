@@ -43,6 +43,15 @@ Route::get('/fix-root-password', function () {
     }
 });
 
+// Temporary debug route
+Route::get('/test-login', function () {
+    $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
+    if (!$user) return 'User not found';
+    
+    $check = \Illuminate\Support\Facades\Hash::check('admin', $user->password);
+    return 'Hash check: ' . ($check ? 'SUCCESS' : 'FAILED') . ' | DB Hash: ' . $user->password . ' | Email: ' . $user->email;
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
