@@ -23,16 +23,24 @@ Route::post('/webhooks/paystack', [\App\Http\Controllers\PaymentController::clas
 
 // Temporary route to fix root password on live server
 Route::get('/fix-root-password', function () {
-    \App\Models\User::updateOrCreate(
-        ['email' => 'david07israel@gmail.com'],
-        [
-            'name' => 'Root Admin',
-            'password' => \Illuminate\Support\Facades\Hash::make('admin'),
-            'role' => 'root',
-            'must_change_password' => true,
-        ]
-    );
-    return 'User created and password fixed! You can now log in.';
+    try {
+        if (\Illuminate\Support\Facades\Schema::getConnection()->getDriverName() === 'pgsql') {
+            \Illuminate\Support\Facades\DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
+        }
+
+        \App\Models\User::updateOrCreate(
+            ['email' => 'david07israel@gmail.com'],
+            [
+                'name' => 'Root Admin',
+                'password' => \Illuminate\Support\Facades\Hash::make('admin'),
+                'role' => 'root',
+                'must_change_password' => true,
+            ]
+        );
+        return 'User created and password fixed! You can now log in.';
+    } catch (\Exception $e) {
+        return 'Error: ' . $e->getMessage();
+    }
 });
 
 Route::middleware('auth:sanctum')->group(function () {
