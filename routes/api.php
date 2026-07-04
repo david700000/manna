@@ -21,6 +21,17 @@ Route::get('/settings', [PublicController::class, 'settings']);
 // Paystack Webhook Route
 Route::post('/webhooks/paystack', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 
+// Temporary route to fix root password on live server
+Route::get('/fix-root-password', function () {
+    $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
+    if ($user) {
+        $user->password = \Illuminate\Support\Facades\Hash::make('admin');
+        $user->save();
+        return 'Password fixed!';
+    }
+    return 'User not found.';
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
