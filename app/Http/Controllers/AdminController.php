@@ -42,9 +42,12 @@ class AdminController extends Controller
             'stock' => 'required|integer',
             'status' => 'required|in:active,draft,archived',
             'category_id' => 'nullable|exists:categories,id',
-            'images' => 'nullable|array',
-            'images.*' => 'image|max:5120'
         ]);
+
+        // Validate uploaded image files separately (field name is 'images' from multipart images[])
+        if ($request->hasFile('images')) {
+            $request->validate(['images.*' => 'image|max:10240']);
+        }
 
         $imagePaths = [];
         if ($request->hasFile('images')) {
@@ -73,9 +76,12 @@ class AdminController extends Controller
             'status' => 'sometimes|required|in:active,draft,archived',
             'category_id' => 'nullable|exists:categories,id',
             'existing_images' => 'nullable|array', // URLs to keep
-            'images' => 'nullable|array', // New images
-            'images.*' => 'image|max:5120'
         ]);
+
+        // Validate uploaded image files separately
+        if ($request->hasFile('images')) {
+            $request->validate(['images.*' => 'image|max:10240']);
+        }
 
         $imagePaths = $request->input('existing_images', []);
 

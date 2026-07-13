@@ -26,10 +26,15 @@ class RootController extends Controller
     public function assignRole(Request $request, $id)
     {
         $validated = $request->validate([
-            'role' => 'required|in:admin,staff,customer,root',
+            'role' => 'required|in:admin,staff,root',
         ]);
 
         $user = User::findOrFail($id);
+
+        // Prevent changing a customer's role (customers stay customers)
+        if ($user->role === 'customer') {
+            return response()->json(['message' => 'Customer roles cannot be changed.'], 403);
+        }
 
         // Prevent de-rooting yourself
         if ($user->id === $request->user()->id && $validated['role'] !== 'root') {
@@ -37,12 +42,9 @@ class RootController extends Controller
         }
 
         // All elevated roles must reset their password on next login
-        $elevatedRoles = ['admin', 'staff', 'root'];
-        $mustChangePwd = in_array($validated['role'], $elevatedRoles);
-
         $user->update([
-            'role' => $validated['role'],
-            'must_change_password' => $mustChangePwd,
+            'role'                => $validated['role'],
+            'must_change_password' => true,
         ]);
 
         return response()->json(['message' => 'Role updated successfully.', 'user' => $user]);
