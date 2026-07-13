@@ -42,10 +42,21 @@ class OrderController extends Controller
                 $price = $product->price;
                 $totalAmount += $price * $item['quantity'];
 
+                // Decode images array if stored as JSON string, otherwise array
+                $imgs = [];
+                if (is_array($product->images)) {
+                    $imgs = $product->images;
+                } elseif (is_string($product->images)) {
+                    $imgs = json_decode($product->images, true) ?: [];
+                }
+                $firstImage = count($imgs) > 0 ? $imgs[0] : null;
+
                 $orderItems[] = [
                     'product_id' => $product->id,
-                    'quantity' => $item['quantity'],
+                    'product_name' => $product->name,
                     'price' => $price,
+                    'quantity' => $item['quantity'],
+                    'image_url' => $firstImage,
                 ];
 
                 // Decrement stock
@@ -58,15 +69,24 @@ class OrderController extends Controller
                 }
             }
 
-            // Create Order
+            $user = $request->user();
+
+            // Create Order using migration schema columns
             $order = Order::create([
-                'user_id' => $request->user()->id,
-                'total_amount' => $totalAmount,
-                'status' => 'pending',
-                'payment_status' => 'pending',
                 'reference' => 'ORD-' . strtoupper(Str::random(10)),
-                'shipping_address' => $validated['shipping_address'],
-                'billing_address' => $validated['billing_address'],
+                'user_id' => $user->id,
+                'customer_name' => $user->name,
+                'customer_email' => $user->email,
+                'customer_phone' => $user->phone ?? '',
+                'subtotal' => $totalAmount,
+                'total' => $totalAmount,
+                'status' => 'pending',
+                'payment_status' => 'unpaid',
+                'delivery_address' => [
+                    'shipping_address' => $validated['shipping_address'],
+                    'billing_address' => $validated['billing_address'],
+                ],
+                'notes' => null,
             ]);
 
             // Insert Items
@@ -80,7 +100,7 @@ class OrderController extends Controller
             $order->load('items.product', 'user');
 
             // Send notification to customer
-            try { (new OrderStatusUpdate($order))->send($request->user()); } catch (\Throwable $e) {}
+            try { (new OrderStatusUpdate($order))->send($user); } catch (\Throwable $e) {}
 
             // Send notification to admin
             $adminUser = (object)['email' => 'mannabridalsupport@gmail.com', 'name' => 'Admin'];

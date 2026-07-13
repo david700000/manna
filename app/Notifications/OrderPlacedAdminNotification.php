@@ -24,7 +24,7 @@ class OrderPlacedAdminNotification
             <table style="border-collapse:collapse;width:100%;margin:16px 0;">
                 <tr><td style="padding:8px;background:#f3f0ff;font-weight:bold;">Customer</td><td style="padding:8px;">' . e($this->order->user->name) . ' (' . e($this->order->user->email) . ')</td></tr>
                 <tr><td style="padding:8px;background:#f3f0ff;font-weight:bold;">Order Reference</td><td style="padding:8px;">' . e($this->order->reference) . '</td></tr>
-                <tr><td style="padding:8px;background:#f3f0ff;font-weight:bold;">Total Amount</td><td style="padding:8px;">£' . number_format($this->order->total_amount, 2) . '</td></tr>
+                <tr><td style="padding:8px;background:#f3f0ff;font-weight:bold;">Total Amount</td><td style="padding:8px;">₦' . number_format($this->order->total, 2) . '</td></tr>
             </table>
             <p style="color:#666;font-size:13px;">Please review and process the order.</p>
             <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
