@@ -36,7 +36,7 @@ class PaymentController extends Controller
         // Initialize Paystack transaction
         // Paystack amount is in kobo (multiply by 100)
         $initResponse = Http::withToken($secretKey)->post($this->baseUrl . '/transaction/initialize', [
-            'amount' => $order->total_amount * 100,
+            'amount' => $order->total * 100,
             'email' => $request->user()->email,
             'reference' => $order->reference,
             'callback_url' => env('APP_URL') . '/payment-success',
