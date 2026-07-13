@@ -34,10 +34,6 @@ class OrderController extends Controller
             // Calculate total and prepare items
             foreach ($validated['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
-                
-                if ($product->stock < $item['quantity']) {
-                    return response()->json(['message' => "Not enough stock for {$product->name}"], 400);
-                }
 
                 $price = $product->price;
                 $totalAmount += $price * $item['quantity'];
@@ -58,15 +54,6 @@ class OrderController extends Controller
                     'quantity' => $item['quantity'],
                     'image_url' => $firstImage,
                 ];
-
-                // Decrement stock
-                $product->decrement('stock', $item['quantity']);
-
-                // Check for low stock (e.g. threshold = 5)
-                if ($product->stock < 5) {
-                    $adminUser = (object)['email' => 'mannabridalsupport@gmail.com', 'name' => 'Admin'];
-                    try { (new LowStockNotification($product))->send($adminUser); } catch (\Throwable $e) {}
-                }
             }
 
             $user = $request->user();
