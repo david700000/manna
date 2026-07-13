@@ -42,4 +42,31 @@ class PublicController extends Controller
         $settings = Setting::all()->pluck('value', 'key');
         return response()->json($settings);
     }
+
+    public function sendSupportMessage(Request $request)
+    {
+        $validated = $request->validate([
+            'message' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        $messageData = [
+            'name' => $user ? $user->name : 'Guest Customer',
+            'email' => $user ? $user->email : 'guest@mannabridal.com',
+            'message' => $validated['message'],
+        ];
+
+        $adminUser = (object)[
+            'email' => 'mannabridalsupport@gmail.com',
+            'name' => 'Manna Bridal Support'
+        ];
+
+        try {
+            (new \App\Notifications\ContactMessageNotification($messageData))->send($adminUser);
+            return response()->json(['message' => 'Message sent successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to send message.', 'error' => $e->getMessage()], 500);
+        }
+    }
 }

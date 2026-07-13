@@ -78,6 +78,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/{orderId}/initialize', [\App\Http\Controllers\PaymentController::class, 'initialize']);
     Route::get('/payments/{reference}/verify', [\App\Http\Controllers\PaymentController::class, 'verify']);
 
+    // Support chat messaging
+    Route::post('/support/message', [PublicController::class, 'sendSupportMessage']);
+
     // Admin routes (accessible by admin AND root)
     Route::middleware('role:admin,root')->prefix('admin')->group(function () {
         Route::post('/products', [AdminController::class, 'storeProduct']);
