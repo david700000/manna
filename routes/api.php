@@ -21,7 +21,7 @@ Route::get('/settings', [PublicController::class, 'settings']);
 // Paystack Webhook Route
 Route::post('/webhooks/paystack', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 
-// Temporary route to fix root password on live server
+// Temporary route to fix root password and seed categories on live server
 Route::get('/fix-root-password', function () {
     try {
         if (\Illuminate\Support\Facades\Schema::getConnection()->getDriverName() === 'pgsql') {
@@ -37,7 +37,20 @@ Route::get('/fix-root-password', function () {
                 'must_change_password' => true,
             ]
         );
-        return 'User created and password fixed! You can now log in.';
+
+        // Seed default categories if none exist
+        $categories = ['Gowns', 'Veils', 'Tiaras', 'Shoes', 'Jewelry'];
+        foreach ($categories as $index => $catName) {
+            \App\Models\Category::firstOrCreate(
+                ['name' => $catName],
+                [
+                    'slug' => \Illuminate\Support\Str::slug($catName),
+                    'sort_order' => $index
+                ]
+            );
+        }
+
+        return 'User created, password fixed, and default categories successfully seeded! You can now log in.';
     } catch (\Exception $e) {
         return 'Error: ' . $e->getMessage();
     }
