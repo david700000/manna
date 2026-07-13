@@ -32,7 +32,7 @@ Route::get('/fix-root-password', function () {
             ['email' => 'david07israel@gmail.com'],
             [
                 'name' => 'Root Admin',
-                'password' => \Illuminate\Support\Facades\Hash::make('admin'),
+                'password' => 'admin',
                 'role' => 'root',
                 'must_change_password' => true,
             ]
