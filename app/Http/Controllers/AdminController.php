@@ -210,7 +210,7 @@ class AdminController extends Controller
             'status'   => 'in:active,draft',
         ]);
 
-        $imageUrl = null;
+        $imageUrl = '';
         if ($request->hasFile('image')) {
             $imageUrl = $this->uploadImage($request->file('image'), 'banners');
         }
@@ -258,7 +258,7 @@ class AdminController extends Controller
             'dark'     => 'boolean',
         ]);
 
-        $imageUrl = null;
+        $imageUrl = '';
         if ($request->hasFile('image')) {
             $imageUrl = $this->uploadImage($request->file('image'), 'hero-slides');
         }
