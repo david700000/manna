@@ -36,7 +36,8 @@ return [
     ],
 
     'brevo' => [
-        'api_key' => env('BREVO_API_KEY'),
+        'key' => env('BREVO_KEY', env('MAIL_PASSWORD')),
+        'api_key' => env('BREVO_API_KEY', env('MAIL_PASSWORD')),
     ],
 
 ];
