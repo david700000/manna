@@ -86,37 +86,18 @@ Route::get('/test-login', function (Illuminate\Http\Request $request) {
     }
 });
 
-// Temporary route to test banner creation
-Route::get('/test-banner-now', function () {
+// Temporary route to clean up test banners and slides
+Route::get('/cleanup-test-data', function () {
     try {
-        $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
-        if (!$user) return 'User not found';
-
-        // Check tables exist
-        $hasBanners = \Illuminate\Support\Facades\Schema::hasTable('banners');
-        $hasSlides = \Illuminate\Support\Facades\Schema::hasTable('hero_slides');
-
-        if (!$hasBanners) return 'ERROR: banners table does not exist!';
-        if (!$hasSlides) return 'ERROR: hero_slides table does not exist!';
-
-        // Try to create a banner
-        $banner = \App\Models\Banner::create([
-            'title'     => 'Test Banner ' . time(),
-            'image_url' => '',
-            'status'    => 'active',
-        ]);
-
-        // Try to create a slide
-        $slide = \App\Models\HeroSlide::create([
-            'title'      => 'Test Slide ' . time(),
-            'image_url'  => '',
-            'is_dark'    => false,
-            'sort_order' => 0,
-        ]);
-
-        return 'SUCCESS! Banner ID: ' . $banner->id . ', Slide ID: ' . $slide->id . '. Tables OK.';
+        $banners = \App\Models\Banner::where('title', 'like', 'Test Banner%')->get();
+        $slides  = \App\Models\HeroSlide::where('title', 'like', 'Test Slide%')->get();
+        $bCount  = count($banners);
+        $sCount  = count($slides);
+        foreach ($banners as $b) { $b->delete(); }
+        foreach ($slides  as $s) { $s->delete(); }
+        return "Deleted {$bCount} test banner(s) and {$sCount} test slide(s). Done!";
     } catch (\Exception $e) {
-        return 'ERROR: ' . $e->getMessage() . ' at line ' . $e->getLine();
+        return 'ERROR: ' . $e->getMessage();
     }
 });
 
