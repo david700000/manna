@@ -36,7 +36,7 @@ class PaymentController extends Controller
         // Initialize Paystack transaction
         // Paystack amount is in kobo (multiply by 100)
         $initResponse = Http::withToken($secretKey)->post($this->baseUrl . '/transaction/initialize', [
-            'amount' => $order->total * 100,
+            'amount' => (int) round($order->total * 100),
             'email' => $request->user()->email,
             'reference' => $order->reference,
             'callback_url' => env('APP_URL') . '/payment-success',
@@ -47,8 +47,9 @@ class PaymentController extends Controller
         ]);
 
         if (!$initResponse->successful()) {
+            $errorMsg = $initResponse->json()['message'] ?? 'Failed to initialize payment.';
             Log::error('Paystack Initialization Failed', ['response' => $initResponse->json()]);
-            return response()->json(['message' => 'Failed to initialize payment.'], 500);
+            return response()->json(['message' => 'Payment Error: ' . $errorMsg], 500);
         }
 
         return response()->json([
