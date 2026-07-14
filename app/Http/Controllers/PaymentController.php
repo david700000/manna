@@ -117,9 +117,24 @@ class PaymentController extends Controller
 
     private function processSuccessfulPayment($data)
     {
-        // Use metadata.order_reference if set (new format), otherwise fall back to direct reference match
-        $orderRef = $data['metadata']['order_reference'] ?? $data['reference'];
+        // Use metadata.order_reference if set (new format)
+        $orderRef = null;
+        if (isset($data['metadata']) && is_array($data['metadata']) && isset($data['metadata']['order_reference'])) {
+            $orderRef = $data['metadata']['order_reference'];
+        }
+        
+        // If not found in metadata, try extracting from the attempt reference (e.g. ORD-XXXX-time-rand)
+        if (!$orderRef && isset($data['reference'])) {
+            $parts = explode('-', $data['reference']);
+            if (count($parts) >= 2) {
+                $orderRef = $parts[0] . '-' . $parts[1];
+            } else {
+                $orderRef = $data['reference'];
+            }
+        }
+
         $order = Order::where('reference', $orderRef)->first();
+        
         // Also try direct match as fallback (for old orders)
         if (!$order) {
             $order = Order::where('reference', $data['reference'])->first();
@@ -139,6 +154,8 @@ class PaymentController extends Controller
                 'payment_method' => $data['channel'] ?? 'card',
                 'raw_response' => json_encode($data)
             ]);
+        } else if (!$order) {
+            Log::error('Paystack webhook/verify order not found for reference: ' . $data['reference']);
         }
     }
 }
