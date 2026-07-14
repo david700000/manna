@@ -139,6 +139,10 @@ function tail_custom($filepath, $lines = 1) {
     return implode("\n", $arr);
 }
 
+// Support chat messaging (Accessible by guests and authenticated users)
+Route::get('/chat', [\App\Http\Controllers\ChatController::class, 'getMessages']);
+Route::post('/chat', [\App\Http\Controllers\ChatController::class, 'sendMessage']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
@@ -154,10 +158,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/{orderId}/initialize', [\App\Http\Controllers\PaymentController::class, 'initialize']);
     Route::get('/payments/{reference}/verify', [\App\Http\Controllers\PaymentController::class, 'verify']);
 
-    // Support chat messaging
-    Route::post('/support/message', [PublicController::class, 'sendSupportMessage']);
-
     // Admin routes (accessible by superadmin, manager, inventory AND root)
+    Route::get('/admin/chat', [\App\Http\Controllers\ChatController::class, 'adminGetConversations']);
+    Route::get('/admin/chat/thread', [\App\Http\Controllers\ChatController::class, 'adminGetThread']);
+    Route::post('/admin/chat/reply', [\App\Http\Controllers\ChatController::class, 'adminReply']);
     Route::middleware('role:superadmin,manager,inventory,root')->prefix('admin')->group(function () {
         Route::post('/products', [AdminController::class, 'storeProduct']);
         Route::post('/products/{id}', [AdminController::class, 'updateProduct']); // Using POST with _method=PUT to support multipart/form-data
