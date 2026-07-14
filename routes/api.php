@@ -21,22 +21,32 @@ Route::get('/settings', [PublicController::class, 'settings']);
 // Paystack Webhook Route
 Route::post('/webhooks/paystack', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 
-// Temporary route to fix root password and seed categories on live server
+// Route to seed categories and create root account ONLY IF it doesn't exist
 Route::get('/fix-root-password', function () {
     try {
         if (\Illuminate\Support\Facades\Schema::getConnection()->getDriverName() === 'pgsql') {
             \Illuminate\Support\Facades\DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
         }
 
-        \App\Models\User::updateOrCreate(
-            ['email' => 'david07israel@gmail.com'],
-            [
-                'name' => 'Root Admin',
-                'password' => 'admin',
-                'role' => 'root',
+        // ONLY create if the user doesn't exist — NEVER overwrite an existing password
+        $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
+        if (!$user) {
+            \App\Models\User::create([
+                'name'                => 'Root Admin',
+                'email'               => 'david07israel@gmail.com',
+                'password'            => 'admin',
+                'role'                => 'root',
                 'must_change_password' => true,
-            ]
-        );
+            ]);
+            $userStatus = 'Root user created with default password.';
+        } else {
+            // Just ensure role is correct, do NOT touch the password
+            if ($user->role !== 'root') {
+                $user->role = 'root';
+                $user->save();
+            }
+            $userStatus = 'Root user already exists — password was NOT changed.';
+        }
 
         // Seed default categories if none exist
         $categories = ['Gowns', 'Veils', 'Tiaras', 'Shoes', 'Jewelry'];
@@ -44,13 +54,28 @@ Route::get('/fix-root-password', function () {
             \App\Models\Category::firstOrCreate(
                 ['name' => $catName],
                 [
-                    'slug' => \Illuminate\Support\Str::slug($catName),
+                    'slug'       => \Illuminate\Support\Str::slug($catName),
                     'sort_order' => $index
                 ]
             );
         }
 
-        return 'User created, password fixed, and default categories successfully seeded! You can now log in.';
+        return $userStatus . ' Categories seeded. Done!';
+    } catch (\Exception $e) {
+        return 'Error: ' . $e->getMessage();
+    }
+});
+
+// Emergency route: reset root password to 'admin' ONLY when explicitly needed
+// Visit: /api/reset-root-password-emergency to force reset
+Route::get('/reset-root-password-emergency', function () {
+    try {
+        $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
+        if (!$user) return 'Root user not found.';
+        $user->password = 'admin'; // auto-hashed by model cast
+        $user->must_change_password = true;
+        $user->save();
+        return 'Root password reset to "admin". Please change it after logging in.';
     } catch (\Exception $e) {
         return 'Error: ' . $e->getMessage();
     }
