@@ -15,28 +15,33 @@ class AdminInvitationNotification
 
     public function send(object $notifiable): bool
     {
+        $loginUrl = config('app.frontend_url', 'https://mannabridal.netlify.app');
+
         $html = '
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:30px;background:#fff;border-radius:8px;">
-            <h2 style="color:#7c3aed;">Manna Bridal — Team Invitation</h2>
-            <p>Hello <strong>' . e($notifiable->name) . '</strong>,</p>
-            <p>You have been invited to join the Manna Bridal team as a <strong>' . ucfirst(e($notifiable->role)) . '</strong>.</p>
-            <p>Here are your temporary login credentials:</p>
-            <table style="border-collapse:collapse;width:100%;margin:16px 0;">
-                <tr><td style="padding:8px;background:#f3f0ff;font-weight:bold;">Email</td><td style="padding:8px;">' . e($notifiable->email) . '</td></tr>
-                <tr><td style="padding:8px;background:#f3f0ff;font-weight:bold;">Temporary Password</td><td style="padding:8px;">' . e($this->tempPassword) . '</td></tr>
-            </table>
-            <a href="http://localhost:3000/login"
-               style="display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:6px;margin:16px 0;">
-               Login to Dashboard
-            </a>
-            <p style="color:#666;font-size:13px;">You will be required to change your password on first login.</p>
-            <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-            <p style="color:#999;font-size:12px;">Manna Bridal &mdash; Admin Portal</p>
+        <div style="font-family:Arial,sans-serif;max-width:580px;margin:auto;padding:32px 24px;background:#fff;border-radius:12px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="display:inline-block;background:#F47B20;color:#fff;font-size:22px;font-weight:900;padding:10px 22px;border-radius:8px;letter-spacing:1px;">MANNA BRIDAL</div>
+          </div>
+          <h2 style="color:#1A1A2E;font-size:20px;margin-bottom:8px;">You\'ve been invited! 🎉</h2>
+          <p style="color:#444;font-size:14px;">Hello <strong>' . e($notifiable->name) . '</strong>,</p>
+          <p style="color:#444;font-size:14px;">You have been invited to join the <strong>Manna Bridal</strong> admin team as a <strong>' . ucfirst(e($notifiable->role)) . '</strong>.</p>
+          <p style="color:#444;font-size:14px;">Here are your one-time login credentials:</p>
+          <div style="background:#FAF3F0;border-left:4px solid #F47B20;border-radius:8px;padding:16px 20px;margin:16px 0;">
+            <p style="margin:4px 0;font-size:14px;"><strong>Email:</strong> ' . e($notifiable->email) . '</p>
+            <p style="margin:4px 0;font-size:14px;"><strong>Temporary Password:</strong> <code style="background:#fff;border:1px solid #eee;padding:2px 8px;border-radius:4px;font-size:15px;letter-spacing:1px;">' . e($this->tempPassword) . '</code></p>
+          </div>
+          <a href="' . $loginUrl . '"
+             style="display:inline-block;padding:13px 28px;background:#F47B20;color:#fff;text-decoration:none;border-radius:8px;margin:12px 0;font-weight:bold;font-size:14px;">
+             Login to Dashboard →
+          </a>
+          <p style="color:#888;font-size:12px;margin-top:16px;">⚠️ You will be required to change this password on your first login.</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+          <p style="color:#bbb;font-size:11px;text-align:center;">Manna Bridal &mdash; Admin Portal</p>
         </div>';
 
         return app(BrevoMailService::class)->send(
             ['email' => $notifiable->email, 'name' => $notifiable->name],
-            'Manna Bridal — Administrative Invitation',
+            'Manna Bridal — You\'ve Been Invited to the Admin Team',
             $html
         );
     }

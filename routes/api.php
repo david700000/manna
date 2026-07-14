@@ -22,6 +22,60 @@ Route::get('/settings', [PublicController::class, 'settings']);
 // Paystack Webhook Route
 Route::post('/webhooks/paystack', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 
+// Test all email services — fires one of each email to ADMIN_EMAIL
+Route::get('/test-emails', function () {
+    $adminEmail = env('ADMIN_EMAIL', 'mannabridalsupport@gmail.com');
+    $fakeUser   = (object)['name' => 'Test User', 'email' => $adminEmail, 'role' => 'manager'];
+    $results    = [];
+
+    // 1. Welcome email
+    try {
+        (new \App\Notifications\WelcomeUser())->send($fakeUser);
+        $results['welcome'] = 'sent';
+    } catch (\Throwable $e) { $results['welcome'] = 'FAILED: ' . $e->getMessage(); }
+
+    // 2. Admin invitation
+    try {
+        (new \App\Notifications\AdminInvitationNotification('Temp@12345'))->send($fakeUser);
+        $results['admin_invite'] = 'sent';
+    } catch (\Throwable $e) { $results['admin_invite'] = 'FAILED: ' . $e->getMessage(); }
+
+    // 3. OTP reset
+    try {
+        (new \App\Notifications\PasswordResetNotification('847291', true))->send($fakeUser);
+        $results['otp_reset'] = 'sent';
+    } catch (\Throwable $e) { $results['otp_reset'] = 'FAILED: ' . $e->getMessage(); }
+
+    // 4. Order status (use latest real order if exists, else a fake)
+    try {
+        $order = \App\Models\Order::latest()->first();
+        if ($order) {
+            (new \App\Notifications\OrderStatusUpdate($order))->send($fakeUser);
+            $results['order_status'] = 'sent (order: ' . $order->reference . ')';
+        } else {
+            $results['order_status'] = 'skipped (no orders exist yet)';
+        }
+    } catch (\Throwable $e) { $results['order_status'] = 'FAILED: ' . $e->getMessage(); }
+
+    // 5. Order placed admin notification
+    try {
+        $order = \App\Models\Order::latest()->first();
+        if ($order) {
+            (new \App\Notifications\OrderPlacedAdminNotification($order))->send($fakeUser);
+            $results['order_placed_admin'] = 'sent';
+        } else {
+            $results['order_placed_admin'] = 'skipped (no orders exist yet)';
+        }
+    } catch (\Throwable $e) { $results['order_placed_admin'] = 'FAILED: ' . $e->getMessage(); }
+
+    return response()->json([
+        'message' => 'Email test complete. Check ' . $adminEmail . ' inbox.',
+        'results' => $results,
+    ]);
+});
+
+
+
 // Route to seed categories and create root account ONLY IF it doesn't exist
 Route::get('/fix-root-password', function () {
     try {
