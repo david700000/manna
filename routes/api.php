@@ -86,6 +86,40 @@ Route::get('/test-login', function (Illuminate\Http\Request $request) {
     }
 });
 
+// Temporary route to test banner creation
+Route::get('/test-banner-now', function () {
+    try {
+        $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
+        if (!$user) return 'User not found';
+
+        // Check tables exist
+        $hasBanners = \Illuminate\Support\Facades\Schema::hasTable('banners');
+        $hasSlides = \Illuminate\Support\Facades\Schema::hasTable('hero_slides');
+
+        if (!$hasBanners) return 'ERROR: banners table does not exist!';
+        if (!$hasSlides) return 'ERROR: hero_slides table does not exist!';
+
+        // Try to create a banner
+        $banner = \App\Models\Banner::create([
+            'title'     => 'Test Banner ' . time(),
+            'image_url' => '',
+            'status'    => 'active',
+        ]);
+
+        // Try to create a slide
+        $slide = \App\Models\HeroSlide::create([
+            'title'      => 'Test Slide ' . time(),
+            'image_url'  => '',
+            'is_dark'    => false,
+            'sort_order' => 0,
+        ]);
+
+        return 'SUCCESS! Banner ID: ' . $banner->id . ', Slide ID: ' . $slide->id . '. Tables OK.';
+    } catch (\Exception $e) {
+        return 'ERROR: ' . $e->getMessage() . ' at line ' . $e->getLine();
+    }
+});
+
 Route::get('/migrate-now', function () {
     try {
         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
