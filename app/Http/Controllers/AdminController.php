@@ -114,6 +114,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'image_url' => 'nullable|string|max:1000',
             'sort_order' => 'integer|default:0'
         ]);
 
@@ -130,6 +131,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
+            'image_url' => 'nullable|string|max:1000',
             'sort_order' => 'integer'
         ]);
 
