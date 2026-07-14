@@ -123,11 +123,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/users/{id}', [AdminController::class, 'destroyUser']);
 
         Route::post('/banners', [AdminController::class, 'storeBanner']);
-        Route::put('/banners/{id}', [AdminController::class, 'updateBanner']);
+        Route::post('/banners/{id}', [AdminController::class, 'updateBanner']); // POST with _method=PUT for multipart/form-data
         Route::delete('/banners/{id}', [AdminController::class, 'destroyBanner']);
 
         Route::post('/hero-slides', [AdminController::class, 'storeHeroSlide']);
-        Route::put('/hero-slides/{id}', [AdminController::class, 'updateHeroSlide']);
+        Route::post('/hero-slides/{id}', [AdminController::class, 'updateHeroSlide']); // POST with _method=PUT for multipart/form-data
         Route::delete('/hero-slides/{id}', [AdminController::class, 'destroyHeroSlide']);
 
         Route::put('/settings/theme', [AdminController::class, 'updateTheme']);

@@ -210,20 +210,25 @@ class AdminController extends Controller
             'status'   => 'in:active,draft',
         ]);
 
-        $imageUrl = '';
+        $imageUrl = null;
         if ($request->hasFile('image')) {
             $imageUrl = $this->uploadImage($request->file('image'), 'banners');
         }
 
-        $banner = \App\Models\Banner::create([
-            'title'      => $validated['title'],
-            'subtitle'   => $validated['subtitle'] ?? null,
-            'image_url'  => $imageUrl,
-            'status'     => $validated['status'] ?? 'active',
-            'start_date' => $validated['start'] ?? null,
-            'end_date'   => $validated['end'] ?? null,
-        ]);
-        return response()->json($banner, 201);
+        try {
+            $banner = \App\Models\Banner::create([
+                'title'      => $validated['title'],
+                'subtitle'   => $validated['subtitle'] ?? null,
+                'image_url'  => $imageUrl ?? '',
+                'status'     => $validated['status'] ?? 'active',
+                'start_date' => $validated['start'] ?? null,
+                'end_date'   => $validated['end'] ?? null,
+            ]);
+            return response()->json($banner, 201);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('storeBanner failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
+        }
     }
 
     public function updateBanner(Request $request, $id)
@@ -263,16 +268,21 @@ class AdminController extends Controller
             $imageUrl = $this->uploadImage($request->file('image'), 'hero-slides');
         }
 
-        $slide = \App\Models\HeroSlide::create([
-            'title'      => $validated['title'],
-            'subtitle'   => $validated['subtitle'] ?? null,
-            'image_url'  => $imageUrl,
-            'badge'      => $validated['badge'] ?? null,
-            'cta_text'   => $validated['cta'] ?? null,
-            'is_dark'    => $validated['dark'] ?? false,
-            'sort_order' => 0,
-        ]);
-        return response()->json($slide, 201);
+        try {
+            $slide = \App\Models\HeroSlide::create([
+                'title'      => $validated['title'],
+                'subtitle'   => $validated['subtitle'] ?? null,
+                'image_url'  => $imageUrl ?? '',
+                'badge'      => $validated['badge'] ?? null,
+                'cta_text'   => $validated['cta'] ?? null,
+                'is_dark'    => $validated['dark'] ?? false,
+                'sort_order' => 0,
+            ]);
+            return response()->json($slide, 201);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('storeHeroSlide failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
+        }
     }
 
     public function updateHeroSlide(Request $request, $id)

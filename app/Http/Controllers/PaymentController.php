@@ -33,15 +33,19 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Payment gateway not configured.'], 500);
         }
 
+        // Generate a fresh unique reference per attempt to avoid Paystack "duplicate receipt" errors on retries
+        $attemptRef = $order->reference . '-' . now()->timestamp . '-' . \Illuminate\Support\Str::random(6);
+
         // Initialize Paystack transaction
         // Paystack amount is in kobo (multiply by 100)
         $initResponse = Http::withToken($secretKey)->post($this->baseUrl . '/transaction/initialize', [
             'amount' => (int) round($order->total * 100),
             'email' => $request->user()->email,
-            'reference' => $order->reference,
+            'reference' => $attemptRef,
             'callback_url' => env('APP_URL') . '/payment-success',
             'metadata' => [
                 'order_id' => $order->id,
+                'order_reference' => $order->reference,
                 'user_id' => $request->user()->id,
             ]
         ]);
@@ -112,7 +116,13 @@ class PaymentController extends Controller
 
     private function processSuccessfulPayment($data)
     {
-        $order = Order::where('reference', $data['reference'])->first();
+        // Use metadata.order_reference if set (new format), otherwise fall back to direct reference match
+        $orderRef = $data['metadata']['order_reference'] ?? $data['reference'];
+        $order = Order::where('reference', $orderRef)->first();
+        // Also try direct match as fallback (for old orders)
+        if (!$order) {
+            $order = Order::where('reference', $data['reference'])->first();
+        }
         
         if ($order && $order->payment_status !== 'paid') {
             $order->update(['payment_status' => 'paid', 'status' => 'processing']);
