@@ -199,6 +199,11 @@ class AdminController extends Controller
     }
 
     // --- Banners ---
+    public function indexBanners()
+    {
+        return response()->json(\App\Models\Banner::latest()->get());
+    }
+
     public function storeBanner(Request $request)
     {
         $validated = $request->validate([
@@ -235,14 +240,19 @@ class AdminController extends Controller
     {
         $banner = \App\Models\Banner::findOrFail($id);
         $data = $request->only(['title', 'subtitle', 'status']);
-        if ($request->has('start')) $data['start_date'] = $request->start;
-        if ($request->has('end')) $data['end_date'] = $request->end;
-        
+        if ($request->has('start') && $request->start) $data['start_date'] = $request->start;
+        if ($request->has('end') && $request->end) $data['end_date'] = $request->end;
+
         if ($request->hasFile('image')) {
             $data['image_url'] = $this->uploadImage($request->file('image'), 'banners');
         }
-        $banner->update($data);
-        return response()->json($banner);
+        try {
+            $banner->update($data);
+            return response()->json($banner);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('updateBanner failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
+        }
     }
 
     public function destroyBanner($id)
@@ -252,6 +262,11 @@ class AdminController extends Controller
     }
 
     // --- Hero Slides ---
+    public function indexHeroSlides()
+    {
+        return response()->json(\App\Models\HeroSlide::orderBy('sort_order')->get());
+    }
+
     public function storeHeroSlide(Request $request)
     {
         $validated = $request->validate([
@@ -288,12 +303,20 @@ class AdminController extends Controller
     public function updateHeroSlide(Request $request, $id)
     {
         $slide = \App\Models\HeroSlide::findOrFail($id);
-        $data = $request->only(['title', 'subtitle', 'badge', 'cta_text', 'is_dark', 'sort_order']);
+        // Frontend sends 'cta' and 'dark', map to DB column names
+        $data = $request->only(['title', 'subtitle', 'badge', 'sort_order']);
+        if ($request->has('cta')) $data['cta_text'] = $request->input('cta');
+        if ($request->has('dark')) $data['is_dark'] = in_array($request->input('dark'), ['1', 1, 'true', true], true);
         if ($request->hasFile('image')) {
             $data['image_url'] = $this->uploadImage($request->file('image'), 'hero-slides');
         }
-        $slide->update($data);
-        return response()->json($slide);
+        try {
+            $slide->update($data);
+            return response()->json($slide);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('updateHeroSlide failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
+        }
     }
 
     public function destroyHeroSlide($id)
