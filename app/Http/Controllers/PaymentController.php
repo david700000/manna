@@ -97,6 +97,9 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Payment verified successfully.', 'status' => 'success']);
         }
 
+        // Handle failed/cancelled
+        $this->processFailedPayment($data, $data['status']);
+
         return response()->json(['message' => 'Payment not successful.', 'status' => $data['status']], 400);
     }
 
@@ -122,6 +125,8 @@ class PaymentController extends Controller
 
         if ($event['event'] === 'charge.success') {
             $this->processSuccessfulPayment($event['data']);
+        } else if ($event['event'] === 'charge.failed') {
+            $this->processFailedPayment($event['data'], 'failed');
         }
 
         return response()->json(['message' => 'Webhook received']);
@@ -153,7 +158,7 @@ class PaymentController extends Controller
         }
         
         if ($order && $order->payment_status !== 'paid') {
-            $order->update(['payment_status' => 'paid', 'status' => 'processing']);
+            $order->update(['payment_status' => 'paid', 'status' => 'paid']);
             
             // Record payment
             Payment::create([
@@ -178,6 +183,51 @@ class PaymentController extends Controller
             }
         } else if (!$order) {
             Log::error('Paystack webhook/verify order not found for reference: ' . $data['reference']);
+        }
+    }
+
+    private function processFailedPayment($data, $statusStr)
+    {
+        $orderRef = null;
+        if (isset($data['metadata']) && is_array($data['metadata']) && isset($data['metadata']['order_reference'])) {
+            $orderRef = $data['metadata']['order_reference'];
+        }
+        if (!$orderRef && isset($data['reference'])) {
+            $parts = explode('-', $data['reference']);
+            if (count($parts) >= 2) {
+                $orderRef = $parts[0] . '-' . $parts[1];
+            } else {
+                $orderRef = $data['reference'];
+            }
+        }
+
+        $order = Order::where('reference', $orderRef)->first();
+        if (!$order) {
+            $order = Order::where('reference', $data['reference'])->first();
+        }
+
+        if ($order && $order->payment_status !== 'paid') {
+            $newStatus = strtolower($statusStr);
+            if ($newStatus === 'abandoned') {
+                $newStatus = 'cancelled';
+            }
+            
+            // Limit to allowed enum values or set as failed
+            if (!in_array($newStatus, ['failed', 'cancelled'])) {
+                $newStatus = 'failed';
+            }
+
+            $order->update(['payment_status' => $newStatus, 'status' => $newStatus]);
+            
+            Payment::create([
+                'order_id'              => $order->id,
+                'monnify_reference'     => null,
+                'transaction_reference' => $data['reference'],
+                'amount'                => ($data['amount'] ?? 0) / 100,
+                'status'                => $newStatus,
+                'payment_method'        => $data['channel'] ?? 'card',
+                'raw_response'          => json_encode($data)
+            ]);
         }
     }
 }

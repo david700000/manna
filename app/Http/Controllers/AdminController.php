@@ -162,7 +162,7 @@ class AdminController extends Controller
         $order = Order::findOrFail($id);
         
         $validated = $request->validate([
-            'status' => 'required|in:pending,processing,shipped,delivered,cancelled,paid',
+            'status' => 'required|in:pending,processing,shipped,delivered,cancelled,paid,failed',
         ]);
 
         $oldStatus = $order->status;
