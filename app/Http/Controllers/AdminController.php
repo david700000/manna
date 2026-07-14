@@ -206,53 +206,50 @@ class AdminController extends Controller
 
     public function storeBanner(Request $request)
     {
-        $validated = $request->validate([
-            'title'    => 'required|string|max:255',
-            'subtitle' => 'nullable|string',
-            'image'    => 'nullable|file|image|max:5120',
-            'start'    => 'nullable|date',
-            'end'      => 'nullable|date',
-            'status'   => 'in:active,draft',
+        $request->validate([
+            'title'     => 'required|string|max:255',
+            'subtitle'  => 'nullable|string',
+            'image_url' => 'nullable|string|max:1000',
+            'start'     => 'nullable|date',
+            'end'       => 'nullable|date',
+            'status'    => 'nullable|in:active,draft',
         ]);
 
-        $imageUrl = null;
-        if ($request->hasFile('image')) {
-            $imageUrl = $this->uploadImage($request->file('image'), 'banners');
-        }
+        $banner = \App\Models\Banner::create([
+            'title'      => $request->input('title'),
+            'subtitle'   => $request->input('subtitle') ?: null,
+            'image_url'  => $request->input('image_url', ''),
+            'status'     => $request->input('status', 'active'),
+            'start_date' => $request->input('start') ?: null,
+            'end_date'   => $request->input('end') ?: null,
+        ]);
 
-        try {
-            $banner = \App\Models\Banner::create([
-                'title'      => $validated['title'],
-                'subtitle'   => $validated['subtitle'] ?? null,
-                'image_url'  => $imageUrl ?? '',
-                'status'     => $validated['status'] ?? 'active',
-                'start_date' => $validated['start'] ?? null,
-                'end_date'   => $validated['end'] ?? null,
-            ]);
-            return response()->json($banner, 201);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('storeBanner failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
-        }
+        return response()->json($banner, 201);
     }
 
     public function updateBanner(Request $request, $id)
     {
         $banner = \App\Models\Banner::findOrFail($id);
-        $data = $request->only(['title', 'subtitle', 'status']);
-        if ($request->has('start') && $request->start) $data['start_date'] = $request->start;
-        if ($request->has('end') && $request->end) $data['end_date'] = $request->end;
 
-        if ($request->hasFile('image')) {
-            $data['image_url'] = $this->uploadImage($request->file('image'), 'banners');
-        }
-        try {
-            $banner->update($data);
-            return response()->json($banner);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('updateBanner failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
-        }
+        $request->validate([
+            'title'     => 'nullable|string|max:255',
+            'subtitle'  => 'nullable|string',
+            'image_url' => 'nullable|string|max:1000',
+            'start'     => 'nullable|date',
+            'end'       => 'nullable|date',
+            'status'    => 'nullable|in:active,draft',
+        ]);
+
+        $data = [];
+        if ($request->has('title'))     $data['title']      = $request->input('title');
+        if ($request->has('subtitle'))  $data['subtitle']   = $request->input('subtitle') ?: null;
+        if ($request->has('image_url')) $data['image_url']  = $request->input('image_url');
+        if ($request->has('status'))    $data['status']     = $request->input('status');
+        if ($request->has('start'))     $data['start_date'] = $request->input('start') ?: null;
+        if ($request->has('end'))       $data['end_date']   = $request->input('end') ?: null;
+
+        $banner->update($data);
+        return response()->json($banner->fresh());
     }
 
     public function destroyBanner($id)
