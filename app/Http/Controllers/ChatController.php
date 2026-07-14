@@ -13,7 +13,7 @@ class ChatController extends Controller
 
     public function getMessages(Request $request)
     {
-        $sessionId = $request->header('X-Session-ID');
+        $sessionId = $request->header('X-Session-ID') ?: $request->input('session_id');
         $user = auth('sanctum')->user();
 
         $query = SupportMessage::query();
@@ -35,9 +35,10 @@ class ChatController extends Controller
     {
         $validated = $request->validate([
             'message' => 'required|string',
+            'session_id' => 'nullable|string',
         ]);
 
-        $sessionId = $request->header('X-Session-ID');
+        $sessionId = $request->header('X-Session-ID') ?: $request->input('session_id');
         $user = auth('sanctum')->user();
 
         $message = SupportMessage::create([
