@@ -112,4 +112,36 @@ class OrderController extends Controller
         $order = $request->user()->orders()->with('items.product')->findOrFail($id);
         return response()->json($order);
     }
+
+    public function confirmDelivery(Request $request, $id)
+    {
+        $order = $request->user()->orders()->findOrFail($id);
+
+        if ($order->status === 'delivered') {
+            return response()->json(['message' => 'Order is already marked as delivered.'], 400);
+        }
+
+        $order->update(['status' => 'delivered']);
+
+        // Send notification to admin/system about customer confirmation
+        try {
+            $adminUser = (object)['email' => env('ADMIN_EMAIL', 'mannabridalsupport@gmail.com'), 'name' => 'Admin'];
+            $msg = 'Order ' . $order->reference . ' has been confirmed as RECEIVED by the customer.';
+            
+            // Insert chat message
+            \App\Models\SupportMessage::create([
+                'user_id' => $request->user()->id,
+                'session_id' => null,
+                'is_admin_reply' => false,
+                'message' => 'SYSTEM: Customer confirmed order delivery.'
+            ]);
+
+            \Illuminate\Support\Facades\Notification::send($adminUser, new \App\Notifications\ChatNotification([
+                'name' => 'System',
+                'message' => $msg
+            ], 'admin'));
+        } catch (\Throwable $e) {}
+
+        return response()->json(['message' => 'Delivery confirmed successfully', 'order' => $order]);
+    }
 }

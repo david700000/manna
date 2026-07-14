@@ -170,6 +170,20 @@ class AdminController extends Controller
 
         if ($oldStatus !== $order->status) {
             try { (new OrderStatusUpdate($order))->send($order->user); } catch (\Throwable $e) {}
+
+            // Insert system message into chat
+            try {
+                if ($order->user) {
+                    \App\Models\SupportMessage::create([
+                        'user_id' => $order->user->id,
+                        'session_id' => null,
+                        'is_admin_reply' => true,
+                        'message' => 'SYSTEM NOTIFICATION: Your order ' . $order->reference . ' status has been updated to: ' . strtoupper($order->status)
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Order status chat update failed: ' . $e->getMessage());
+            }
         }
 
         return response()->json($order);

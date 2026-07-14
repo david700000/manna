@@ -47,15 +47,15 @@ class ChatController extends Controller
             'message' => $validated['message'],
         ]);
 
-        // Send notification to admin (optional, can keep the email logic)
+        // Send notification to admin
         try {
-            $adminUser = (object)['email' => env('ADMIN_EMAIL', 'admin@mannabridal.com')];
+            $adminUser = (object)['email' => env('ADMIN_EMAIL', 'mannabridalsupport@gmail.com'), 'name' => 'Admin'];
             $messageData = [
                 'name' => $user ? $user->name : 'Guest Customer',
                 'email' => $user ? $user->email : 'guest@mannabridal.com',
                 'message' => $validated['message'],
             ];
-            \Illuminate\Support\Facades\Notification::send($adminUser, new \App\Notifications\SupportMessage($messageData));
+            \Illuminate\Support\Facades\Notification::send($adminUser, new \App\Notifications\ChatNotification($messageData, 'admin'));
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Support msg notification error: ' . $e->getMessage());
         }
@@ -121,6 +121,23 @@ class ChatController extends Controller
             'is_admin_reply' => true,
             'message' => $validated['message'],
         ]);
+
+        // Send email to customer
+        try {
+            $user = null;
+            if (!empty($validated['user_id'])) {
+                $user = \App\Models\User::find($validated['user_id']);
+            }
+            if ($user && $user->email) {
+                $messageData = [
+                    'name' => $user->name,
+                    'message' => $validated['message']
+                ];
+                \Illuminate\Support\Facades\Notification::send($user, new \App\Notifications\ChatNotification($messageData, 'customer'));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Chat reply email error: ' . $e->getMessage());
+        }
 
         return response()->json($message, 201);
     }
