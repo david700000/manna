@@ -66,21 +66,6 @@ Route::get('/fix-root-password', function () {
     }
 });
 
-// Emergency route: reset root password to 'admin' ONLY when explicitly needed
-// Visit: /api/reset-root-password-emergency to force reset
-Route::get('/reset-root-password-emergency', function () {
-    try {
-        $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
-        if (!$user) return 'Root user not found.';
-        $user->password = 'admin'; // auto-hashed by model cast
-        $user->must_change_password = true;
-        $user->save();
-        return 'Root password reset to "admin". Please change it after logging in.';
-    } catch (\Exception $e) {
-        return 'Error: ' . $e->getMessage();
-    }
-});
-
 // Temporary debug route
 Route::get('/test-login', function (Illuminate\Http\Request $request) {
     try {
