@@ -47,6 +47,18 @@ class PaymentController extends Controller
                 'order_id' => $order->id,
                 'order_reference' => $order->reference,
                 'user_id' => $request->user()->id,
+                'custom_fields' => [
+                    [
+                        'display_name' => 'Customer Name',
+                        'variable_name' => 'customer_name',
+                        'value' => $order->customer_name
+                    ],
+                    [
+                        'display_name' => 'Order Number',
+                        'variable_name' => 'order_number',
+                        'value' => $order->reference
+                    ]
+                ]
             ]
         ]);
 
