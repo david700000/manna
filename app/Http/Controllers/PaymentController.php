@@ -57,9 +57,10 @@ class PaymentController extends Controller
         }
 
         return response()->json([
-            'checkoutUrl' => $initResponse->json()['data']['authorization_url'],
-            'accessCode' => $initResponse->json()['data']['access_code'],
-            'transactionReference' => $initResponse->json()['data']['reference']
+            'checkoutUrl'          => $initResponse->json()['data']['authorization_url'],
+            'accessCode'           => $initResponse->json()['data']['access_code'],
+            'transactionReference' => $initResponse->json()['data']['reference'],
+            'amountKobo'           => (int) round($order->total * 100),
         ]);
     }
 
