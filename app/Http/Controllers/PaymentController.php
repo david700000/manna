@@ -157,15 +157,25 @@ class PaymentController extends Controller
             
             // Record payment
             Payment::create([
-                'order_id' => $order->id,
-                'monnify_reference' => null,
+                'order_id'              => $order->id,
+                'monnify_reference'     => null,
                 'transaction_reference' => $data['reference'],
                 // Paystack amount is in kobo, convert back to NGN
-                'amount' => $data['amount'] / 100,
-                'status' => 'paid',
-                'payment_method' => $data['channel'] ?? 'card',
-                'raw_response' => json_encode($data)
+                'amount'                => $data['amount'] / 100,
+                'status'                => 'paid',
+                'payment_method'        => $data['channel'] ?? 'card',
+                'raw_response'          => json_encode($data)
             ]);
+
+            // Send payment confirmation email to customer
+            try {
+                $order->load('user', 'items.product');
+                if ($order->user) {
+                    (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Payment confirmation email failed: ' . $e->getMessage());
+            }
         } else if (!$order) {
             Log::error('Paystack webhook/verify order not found for reference: ' . $data['reference']);
         }
