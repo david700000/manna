@@ -66,23 +66,20 @@ Route::get('/fix-root-password', function () {
     }
 });
 
-// Temporary debug route
-Route::get('/test-login', function (Illuminate\Http\Request $request) {
+// Emergency: generate a fresh token WITHOUT deleting existing ones
+// Visit this URL to get a token you can paste in browser console:
+// localStorage.setItem('auth_token', 'PASTE_TOKEN_HERE')
+Route::get('/emergency-login', function () {
     try {
         $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
         if (!$user) return 'User not found';
-        
-        $check = \Illuminate\Support\Facades\Hash::check('admin', $user->password);
-        if (!$check) return 'Hash check failed';
-
-        // Simulate login success steps
-        \Illuminate\Support\Facades\RateLimiter::clear('test:123');
-        $user->tokens()->delete();
-        $token = $user->createToken('auth_token')->plainTextToken;
-        
-        return 'SUCCESS! Token generated: ' . substr($token, 0, 10) . '...';
+        $token = $user->createToken('emergency_token')->plainTextToken;
+        return response()->json([
+            'token' => $token,
+            'instructions' => 'Open browser console on your site and run: localStorage.setItem("auth_token", "' . $token . '"); localStorage.setItem("user", JSON.stringify(' . json_encode(['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'role' => $user->role]) . ')); location.reload();'
+        ]);
     } catch (\Exception $e) {
-        return 'CRASH DURING LOGIN: ' . $e->getMessage() . ' at line ' . $e->getLine();
+        return 'ERROR: ' . $e->getMessage();
     }
 });
 
