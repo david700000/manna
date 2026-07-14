@@ -279,7 +279,14 @@ class AdminController extends Controller
         ]);
 
         $imageUrl = '';
-        if ($request->hasFile('image')) {
+        // Look for the images array just like products
+        if ($request->hasFile('images')) {
+            $files = $request->file('images');
+            if (count($files) > 0) {
+                $imageUrl = $this->uploadImage($files[0], 'hero-slides');
+            }
+        } else if ($request->hasFile('image')) {
+            // fallback
             $imageUrl = $this->uploadImage($request->file('image'), 'hero-slides');
         }
 
@@ -307,7 +314,13 @@ class AdminController extends Controller
         $data = $request->only(['title', 'subtitle', 'badge', 'sort_order']);
         if ($request->has('cta')) $data['cta_text'] = $request->input('cta');
         if ($request->has('dark')) $data['is_dark'] = in_array($request->input('dark'), ['1', 1, 'true', true], true);
-        if ($request->hasFile('image')) {
+        
+        if ($request->hasFile('images')) {
+            $files = $request->file('images');
+            if (count($files) > 0) {
+                $data['image_url'] = $this->uploadImage($files[0], 'hero-slides');
+            }
+        } else if ($request->hasFile('image')) {
             $data['image_url'] = $this->uploadImage($request->file('image'), 'hero-slides');
         }
         try {
