@@ -86,6 +86,15 @@ Route::get('/test-login', function (Illuminate\Http\Request $request) {
     }
 });
 
+Route::get('/migrate-now', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        return response('Migrations ran successfully: ' . \Illuminate\Support\Facades\Artisan::output())->header('Content-Type', 'text/plain');
+    } catch (\Exception $e) {
+        return response('Migration failed: ' . $e->getMessage())->header('Content-Type', 'text/plain');
+    }
+});
+
 Route::get('/debug-logs', function () {
     $path = storage_path('logs/laravel.log');
     if (file_exists($path)) {
