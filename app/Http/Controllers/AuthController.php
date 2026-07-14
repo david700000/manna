@@ -132,7 +132,7 @@ class AuthController extends Controller
         return response()->json(['message' => 'Successfully logged out.']);
     }
 
-    // ── Forgot Password ───────────────────────────────────────────────────────
+    // ── Forgot Password (OTP) ─────────────────────────────────────────────────
 
     public function forgotPassword(Request $request)
     {
@@ -149,15 +149,46 @@ class AuthController extends Controller
 
         // Always return the same message to prevent email enumeration
         if ($user) {
-            $token = Str::random(64);
+            // Generate 6-digit OTP
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
             DB::table('password_reset_tokens')->updateOrInsert(
                 ['email' => $user->email],
-                ['token' => Hash::make($token), 'created_at' => now()]
+                ['token' => Hash::make($otp), 'created_at' => now()]
             );
-            try { (new PasswordResetNotification($token))->send($user); } catch (\Throwable $e) {}
+
+            try {
+                (new PasswordResetNotification($otp, true))->send($user);
+            } catch (\Throwable $e) {}
         }
 
-        return response()->json(['message' => 'If that email is registered, a reset link has been sent.']);
+        return response()->json(['message' => 'If that email is registered, a 6-digit OTP has been sent.']);
+    }
+
+    // ── Verify OTP ────────────────────────────────────────────────────────────
+
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|max:255',
+            'otp'   => 'required|string|size:6',
+        ]);
+
+        $reset = DB::table('password_reset_tokens')
+            ->where('email', strtolower(trim($request->email)))
+            ->first();
+
+        if (!$reset || !Hash::check($request->otp, $reset->token)) {
+            return response()->json(['message' => 'Invalid or expired OTP.'], 400);
+        }
+
+        // OTP expires after 10 minutes
+        if (now()->diffInMinutes($reset->created_at) > 10) {
+            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            return response()->json(['message' => 'OTP has expired. Please request a new one.'], 400);
+        }
+
+        return response()->json(['message' => 'OTP verified.', 'valid' => true]);
     }
 
     // ── Reset Password ────────────────────────────────────────────────────────
@@ -165,9 +196,9 @@ class AuthController extends Controller
     public function resetPassword(Request $request)
     {
         $request->validate([
-            'email'                 => 'required|email|max:255',
-            'token'                 => 'required|string|size:64',
-            'password'              => [
+            'email'    => 'required|email|max:255',
+            'otp'      => 'required|string|size:6',
+            'password' => [
                 'required', 'string', 'min:8', 'confirmed',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/',
             ],
@@ -179,14 +210,14 @@ class AuthController extends Controller
             ->where('email', strtolower(trim($request->email)))
             ->first();
 
-        if (!$reset || !Hash::check($request->token, $reset->token)) {
-            return response()->json(['message' => 'Invalid or expired password reset token.'], 400);
+        if (!$reset || !Hash::check($request->otp, $reset->token)) {
+            return response()->json(['message' => 'Invalid or expired OTP.'], 400);
         }
 
-        // Token expires after 60 minutes
-        if (now()->diffInMinutes($reset->created_at) > 60) {
+        // OTP expires after 10 minutes
+        if (now()->diffInMinutes($reset->created_at) > 10) {
             DB::table('password_reset_tokens')->where('email', $request->email)->delete();
-            return response()->json(['message' => 'Password reset token has expired. Please request a new one.'], 400);
+            return response()->json(['message' => 'OTP has expired. Please request a new one.'], 400);
         }
 
         $user = User::where('email', strtolower(trim($request->email)))->first();
