@@ -267,41 +267,55 @@ class AdminController extends Controller
         return response()->json(\App\Models\HeroSlide::orderBy('sort_order')->get());
     }
 
+    /**
+     * Generate a Cloudinary signed upload signature so the browser
+     * can upload images directly to Cloudinary (no Render timeout risk).
+     */
+    public function cloudinarySignature(Request $request)
+    {
+        $cloudUrl = env('CLOUDINARY_URL', '');
+        // Parse cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+        preg_match('#cloudinary://([^:]+):([^@]+)@(.+)#', $cloudUrl, $matches);
+        $apiKey    = $matches[1] ?? '';
+        $apiSecret = $matches[2] ?? '';
+        $cloudName = $matches[3] ?? '';
+
+        $timestamp = time();
+        $folder    = 'hero-slides';
+
+        // Build the string to sign (params sorted alphabetically)
+        $paramsToSign = "folder={$folder}&timestamp={$timestamp}";
+        $signature    = sha1($paramsToSign . $apiSecret);
+
+        return response()->json([
+            'api_key'    => $apiKey,
+            'cloud_name' => $cloudName,
+            'timestamp'  => $timestamp,
+            'signature'  => $signature,
+            'folder'     => $folder,
+        ]);
+    }
+
     public function storeHeroSlide(Request $request)
     {
-        \Illuminate\Support\Facades\Log::info('storeHeroSlide called', [
-            'has_image' => $request->hasFile('image'),
-            'has_images' => $request->hasFile('images'),
-            'all_keys' => array_keys($request->all()),
-            'files' => array_keys($request->allFiles()),
-        ]);
-
         $request->validate([
-            'title'    => 'required|string|max:255',
-            'subtitle' => 'nullable|string|max:500',
-            'image'    => 'nullable|file|image|max:10240',
-            'badge'    => 'nullable|string|max:100',
-            'cta'      => 'nullable|string|max:100',
-            'dark'     => 'nullable',
+            'title'     => 'required|string|max:255',
+            'subtitle'  => 'nullable|string|max:500',
+            'image_url' => 'nullable|string|max:1000',
+            'badge'     => 'nullable|string|max:100',
+            'cta'       => 'nullable|string|max:100',
+            'dark'      => 'nullable',
         ]);
-
-        $imageUrl = '';
-
-        if ($request->hasFile('image') && $request->file('image')->isValid()) {
-            $imageUrl = $this->uploadImage($request->file('image'), 'hero-slides');
-        }
 
         $slide = \App\Models\HeroSlide::create([
             'title'      => $request->input('title'),
             'subtitle'   => $request->input('subtitle') ?: null,
-            'image_url'  => $imageUrl,
+            'image_url'  => $request->input('image_url', ''),
             'badge'      => $request->input('badge') ?: null,
             'cta_text'   => $request->input('cta') ?: null,
             'is_dark'    => in_array($request->input('dark'), ['1', 1, 'true', true], true),
             'sort_order' => (int)(\App\Models\HeroSlide::max('sort_order') ?? 0) + 1,
         ]);
-
-        \Illuminate\Support\Facades\Log::info('storeHeroSlide success', ['id' => $slide->id, 'image_url' => $imageUrl]);
 
         return response()->json($slide, 201);
     }
@@ -311,25 +325,21 @@ class AdminController extends Controller
         $slide = \App\Models\HeroSlide::findOrFail($id);
 
         $request->validate([
-            'title'    => 'nullable|string|max:255',
-            'subtitle' => 'nullable|string|max:500',
-            'image'    => 'nullable|file|image|max:10240',
-            'badge'    => 'nullable|string|max:100',
-            'cta'      => 'nullable|string|max:100',
-            'dark'     => 'nullable',
+            'title'     => 'nullable|string|max:255',
+            'subtitle'  => 'nullable|string|max:500',
+            'image_url' => 'nullable|string|max:1000',
+            'badge'     => 'nullable|string|max:100',
+            'cta'       => 'nullable|string|max:100',
+            'dark'      => 'nullable',
         ]);
 
         $data = [];
-        if ($request->has('title'))      $data['title']     = $request->input('title');
-        if ($request->has('subtitle'))   $data['subtitle']  = $request->input('subtitle') ?: null;
-        if ($request->has('badge'))      $data['badge']     = $request->input('badge') ?: null;
-        if ($request->has('cta'))        $data['cta_text']  = $request->input('cta') ?: null;
-        if ($request->has('dark'))       $data['is_dark']   = in_array($request->input('dark'), ['1', 1, 'true', true], true);
-        if ($request->has('sort_order')) $data['sort_order']= (int)$request->input('sort_order');
-
-        if ($request->hasFile('image') && $request->file('image')->isValid()) {
-            $data['image_url'] = $this->uploadImage($request->file('image'), 'hero-slides');
-        }
+        if ($request->has('title'))     $data['title']     = $request->input('title');
+        if ($request->has('subtitle'))  $data['subtitle']  = $request->input('subtitle') ?: null;
+        if ($request->has('image_url')) $data['image_url'] = $request->input('image_url');
+        if ($request->has('badge'))     $data['badge']     = $request->input('badge') ?: null;
+        if ($request->has('cta'))       $data['cta_text']  = $request->input('cta') ?: null;
+        if ($request->has('dark'))      $data['is_dark']   = in_array($request->input('dark'), ['1', 1, 'true', true], true);
 
         $slide->update($data);
         return response()->json($slide->fresh());

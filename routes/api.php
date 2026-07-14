@@ -186,8 +186,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/hero-slides', [AdminController::class, 'indexHeroSlides']);
         Route::post('/hero-slides', [AdminController::class, 'storeHeroSlide']);
-        Route::post('/hero-slides/{id}', [AdminController::class, 'updateHeroSlide']); // POST with _method=PUT for multipart/form-data
+        Route::post('/hero-slides/{id}', [AdminController::class, 'updateHeroSlide']);
         Route::delete('/hero-slides/{id}', [AdminController::class, 'destroyHeroSlide']);
+
+        Route::get('/cloudinary-signature', [AdminController::class, 'cloudinarySignature']);
 
         Route::put('/settings/theme', [AdminController::class, 'updateTheme']);
         Route::post('/marketing/broadcast', [AdminController::class, 'broadcastOffer']);
