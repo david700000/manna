@@ -2,28 +2,13 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
-/**
- * Sends transactional emails via Laravel's default Mail system.
- * (Previously used Brevo REST API directly)
- */
 class BrevoMailService
 {
-    public function __construct()
-    {
-        // No longer need to fetch Brevo API key, as we use Laravel's Mail facade.
-    }
-
     /**
-     * Send a transactional email.
-     *
-     * @param  string|array  $to       Email address or ['email'=>..,'name'=>..]
-     * @param  string        $subject
-     * @param  string        $html     HTML body
-     * @param  string|null   $text     Optional plain-text fallback
-     * @return bool
+     * Send a transactional email via Brevo REST API.
      */
     public function send(string|array $to, string $subject, string $html, ?string $text = null): bool
     {
@@ -33,16 +18,40 @@ class BrevoMailService
             $to = [$to];
         }
 
+        $apiKey = env('BREVO_API_KEY');
+        if (!$apiKey) {
+            Log::error('Mail sending failed: BREVO_API_KEY is not set.');
+            return false;
+        }
+
+        $senderEmail = env('MAIL_FROM_ADDRESS', 'mannabridalsupport@gmail.com');
+        $senderName  = env('MAIL_FROM_NAME', 'Manna Bridal');
+
         try {
-            foreach ($to as $recipient) {
-                Mail::html($html, function ($message) use ($recipient, $subject) {
-                    $message->to($recipient['email'], $recipient['name'] ?? null)
-                            ->subject($subject);
-                });
+            $response = Http::withHeaders([
+                'api-key' => $apiKey,
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json'
+            ])->post('https://api.brevo.com/v3/smtp/email', [
+                'sender'      => ['name' => $senderName, 'email' => $senderEmail],
+                'to'          => $to,
+                'subject'     => $subject,
+                'htmlContent' => $html,
+            ]);
+
+            if ($response->successful()) {
+                return true;
             }
-            return true;
+
+            Log::error('Mail sending failed via Brevo API', [
+                'status'   => $response->status(),
+                'response' => $response->json(),
+                'to'       => $to,
+                'subject'  => $subject,
+            ]);
+            return false;
         } catch (\Exception $e) {
-            Log::error('Mail sending failed', [
+            Log::error('Mail sending failed via Brevo API (Exception)', [
                 'error'   => $e->getMessage(),
                 'to'      => $to,
                 'subject' => $subject,
