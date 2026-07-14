@@ -119,8 +119,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Support chat messaging
     Route::post('/support/message', [PublicController::class, 'sendSupportMessage']);
 
-    // Admin routes (accessible by admin AND root)
-    Route::middleware('role:admin,root')->prefix('admin')->group(function () {
+    // Admin routes (accessible by superadmin, manager, inventory AND root)
+    Route::middleware('role:superadmin,manager,inventory,root')->prefix('admin')->group(function () {
         Route::post('/products', [AdminController::class, 'storeProduct']);
         Route::post('/products/{id}', [AdminController::class, 'updateProduct']); // Using POST with _method=PUT to support multipart/form-data
         Route::delete('/products/{id}', [AdminController::class, 'destroyProduct']);
