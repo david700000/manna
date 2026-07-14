@@ -86,6 +86,38 @@ Route::get('/test-login', function (Illuminate\Http\Request $request) {
     }
 });
 
+Route::get('/debug-logs', function () {
+    $path = storage_path('logs/laravel.log');
+    if (file_exists($path)) {
+        return response(tail_custom($path, 100))->header('Content-Type', 'text/plain');
+    }
+    return 'No logs found.';
+});
+
+function tail_custom($filepath, $lines = 1) {
+    $f = @fopen($filepath, "rb");
+    if ($f === false) return false;
+    $cursor = -1;
+    fseek($f, $cursor, SEEK_END);
+    $char = fgetc($f);
+    $line = '';
+    $arr = array();
+    while ($char !== false) {
+        if ($char === "\n") {
+            array_unshift($arr, $line);
+            $line = '';
+            if (count($arr) == $lines) break;
+        } else {
+            $line = $char . $line;
+        }
+        fseek($f, $cursor--, SEEK_END);
+        $char = fgetc($f);
+    }
+    array_unshift($arr, $line);
+    fclose($f);
+    return implode("\n", $arr);
+}
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
