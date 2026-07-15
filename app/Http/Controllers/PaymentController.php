@@ -76,6 +76,66 @@ class PaymentController extends Controller
         ]);
     }
 
+    /**
+     * Admin endpoint: re-verify ALL non-paid orders against Paystack and back-fill their status.
+     */
+    public function adminReverifyAll(Request $request)
+    {
+        $secretKey = $this->getSecretKey();
+
+        if (!$secretKey) {
+            return response()->json(['message' => 'Payment gateway not configured.'], 500);
+        }
+
+        $orders = Order::whereNotIn('payment_status', ['paid'])->latest()->limit(100)->get();
+
+        $updated = [];
+
+        foreach ($orders as $order) {
+            // Query Paystack for transactions matching this order reference
+            $response = Http::withToken($secretKey)
+                ->get($this->baseUrl . '/transaction', [
+                    'perPage'   => 20,
+                    'page'      => 1,
+                    'reference' => $order->reference,
+                ]);
+
+            if (!$response->successful()) {
+                continue;
+            }
+
+            $transactions = $response->json()['data'] ?? [];
+
+            foreach ($transactions as $txn) {
+                if ($txn['status'] === 'success') {
+                    $order->update(['payment_status' => 'paid', 'status' => 'paid']);
+
+                    $exists = Payment::where('transaction_reference', $txn['reference'])->exists();
+                    if (!$exists) {
+                        Payment::create([
+                            'order_id'              => $order->id,
+                            'monnify_reference'     => null,
+                            'transaction_reference' => $txn['reference'],
+                            'amount'                => $txn['amount'] / 100,
+                            'status'                => 'paid',
+                            'payment_method'        => $txn['channel'] ?? 'card',
+                            'raw_response'          => json_encode($txn),
+                        ]);
+                    }
+
+                    $updated[] = $order->reference;
+                    break;
+                }
+            }
+        }
+
+        return response()->json([
+            'message'         => count($updated) . ' order(s) updated to paid.',
+            'updated_orders'  => $updated,
+        ]);
+    }
+
+
     public function verify(Request $request, $reference)
     {
         $secretKey = $this->getSecretKey();

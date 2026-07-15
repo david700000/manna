@@ -262,6 +262,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/payment-config', [RootController::class, 'getPaymentConfig']);
         Route::post('/payment-config', [RootController::class, 'updatePaymentConfig']);
 
+        Route::post('/reverify-payments', [\App\Http\Controllers\PaymentController::class, 'adminReverifyAll']);
+
         Route::get('/logs', [RootController::class, 'getLogs']);
         Route::post('/purge', [RootController::class, 'purgeData']);
 
