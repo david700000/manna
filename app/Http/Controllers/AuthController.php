@@ -28,7 +28,7 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'name'     => 'required|string|max:255|regex:/^[\p{L}\s\'\-\.]+$/u',
-            'email'    => 'required|string|email:rfc,dns|max:255|unique:users',
+            'email'    => 'required|string|email:rfc|max:255|unique:users',
             'password' => [
                 'required', 'string', 'min:8',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/',
@@ -53,6 +53,7 @@ class AuthController extends Controller
                 ->notify(new RegistrationOtpNotification($otp, $validated['name']));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Registration OTP send failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to send OTP email. Please try again later. Error: ' . $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'OTP sent successfully.']);

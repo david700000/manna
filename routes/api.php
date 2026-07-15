@@ -75,6 +75,33 @@ Route::get('/test-emails', function () {
     ]);
 });
 
+// Diagnostic: test OTP email + cache independently
+Route::get('/test-otp-email', function () {
+    $adminEmail = env('ADMIN_EMAIL', 'mannabridalsupport@gmail.com');
+    $results = [];
+
+    // Test cache
+    try {
+        \Illuminate\Support\Facades\Cache::put('test_otp_diag', '999888', 60);
+        $val = \Illuminate\Support\Facades\Cache::get('test_otp_diag');
+        $results['cache'] = ($val === '999888') ? 'OK' : 'FAILED: got ' . $val;
+    } catch (\Throwable $e) {
+        $results['cache'] = 'FAILED: ' . $e->getMessage();
+    }
+
+    // Test OTP notification email
+    try {
+        \Illuminate\Support\Facades\Notification::route('mail', $adminEmail)
+            ->notify(new \App\Notifications\RegistrationOtpNotification('123456', 'Test User'));
+        $results['otp_email'] = 'sent to ' . $adminEmail;
+    } catch (\Throwable $e) {
+        $results['otp_email'] = 'FAILED: ' . $e->getMessage();
+    }
+
+    return response()->json(['results' => $results]);
+});
+
+
 
 
 // Route to seed categories and create root account ONLY IF it doesn't exist
