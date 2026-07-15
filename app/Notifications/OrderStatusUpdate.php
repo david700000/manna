@@ -54,8 +54,9 @@ class OrderStatusUpdate
           <p style="color:#bbb;font-size:11px;text-align:center;">Manna Bridal &mdash; Premium Bridal Collections</p>
         </div>';
 
-        return app(BrevoMailService::class)->send(
-            ['email' => $notifiable->email, 'name' => $notifiable->name],
+        return BrevoMailService::send(
+            $notifiable->email,
+            $notifiable->name,
             $info['icon'] . ' Order ' . e($ref) . ' — ' . $info['label'],
             $html
         );
