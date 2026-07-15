@@ -248,9 +248,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/chat', [\App\Http\Controllers\ChatController::class, 'adminGetConversations']);
     Route::get('/admin/chat/thread', [\App\Http\Controllers\ChatController::class, 'adminGetThread']);
     Route::post('/admin/chat/reply', [\App\Http\Controllers\ChatController::class, 'adminReply']);
-    Route::middleware('role:superadmin,manager,inventory,root')->prefix('admin')->group(function () {
+    Route::middleware('role:superadmin,manager,inventory,staff,root')->prefix('admin')->group(function () {
         Route::post('/products', [AdminController::class, 'storeProduct']);
-        Route::post('/products/{id}', [AdminController::class, 'updateProduct']); // Using POST with _method=PUT to support multipart/form-data
+        Route::put('/products/{id}', [AdminController::class, 'updateProduct']); // Uses POST with _method=PUT from frontend
         Route::delete('/products/{id}', [AdminController::class, 'destroyProduct']);
 
         Route::post('/categories', [AdminController::class, 'storeCategory']);
@@ -260,19 +260,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders', [AdminController::class, 'indexOrders']);
         Route::put('/orders/{id}', [AdminController::class, 'updateOrderStatus']);
         Route::put('/orders/{id}/status', [AdminController::class, 'updateOrderStatus']);
+        Route::delete('/orders', [AdminController::class, 'purgeOrders']);
 
+        Route::get('/customers', [AdminController::class, 'indexCustomers']);
         Route::get('/users', [AdminController::class, 'indexUsers']);
         Route::post('/users', [AdminController::class, 'storeUser']);
         Route::delete('/users/{id}', [AdminController::class, 'destroyUser']);
 
         Route::get('/banners', [AdminController::class, 'indexBanners']);
         Route::post('/banners', [AdminController::class, 'storeBanner']);
-        Route::post('/banners/{id}', [AdminController::class, 'updateBanner']); // POST with _method=PUT for multipart/form-data
+        Route::put('/banners/{id}', [AdminController::class, 'updateBanner']);
         Route::delete('/banners/{id}', [AdminController::class, 'destroyBanner']);
 
         Route::get('/hero-slides', [AdminController::class, 'indexHeroSlides']);
         Route::post('/hero-slides', [AdminController::class, 'storeHeroSlide']);
-        Route::post('/hero-slides/{id}', [AdminController::class, 'updateHeroSlide']);
+        Route::put('/hero-slides/{id}', [AdminController::class, 'updateHeroSlide']);
         Route::delete('/hero-slides/{id}', [AdminController::class, 'destroyHeroSlide']);
 
         Route::get('/cloudinary-signature', [AdminController::class, 'cloudinarySignature']);

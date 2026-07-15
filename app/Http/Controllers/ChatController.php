@@ -41,12 +41,26 @@ class ChatController extends Controller
         $sessionId = $request->header('X-Session-ID') ?: $request->input('session_id');
         $user = auth('sanctum')->user();
 
+        $isFirst = SupportMessage::where(function($q) use ($user, $sessionId) {
+            if ($user) $q->where('user_id', $user->id);
+            else $q->where('session_id', $sessionId)->whereNull('user_id');
+        })->count() === 0;
+
         $message = SupportMessage::create([
             'user_id' => $user ? $user->id : null,
             'session_id' => $sessionId,
             'is_admin_reply' => false,
             'message' => $validated['message'],
         ]);
+
+        if ($isFirst) {
+            SupportMessage::create([
+                'user_id' => $user ? $user->id : null,
+                'session_id' => $sessionId,
+                'is_admin_reply' => true,
+                'message' => 'Thank you for reaching out! We will connect you to our sales rep shortly. 😊',
+            ]);
+        }
 
         // Send notification to admin
         try {
@@ -56,7 +70,7 @@ class ChatController extends Controller
                 'email' => $user ? $user->email : 'guest@mannabridal.com',
                 'message' => $validated['message'],
             ];
-            \Illuminate\Support\Facades\Notification::send($adminUser, new \App\Notifications\ChatNotification($messageData, 'admin'));
+            (new \App\Notifications\ChatNotification($messageData, 'admin'))->send($adminUser);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Support msg notification error: ' . $e->getMessage());
         }
@@ -68,26 +82,23 @@ class ChatController extends Controller
 
     public function adminGetConversations()
     {
-        // Get latest message for each user/session group
-        $conversations = DB::select("
-            SELECT t1.*, u.name as user_name, u.email as user_email
-            FROM support_messages t1
-            INNER JOIN (
-                SELECT 
-                    COALESCE(user_id, 0) as u_id,
-                    COALESCE(session_id, '') as s_id,
-                    MAX(created_at) as max_date
-                FROM support_messages
-                GROUP BY COALESCE(user_id, 0), COALESCE(session_id, '')
-            ) t2 ON 
-                COALESCE(t1.user_id, 0) = t2.u_id AND 
-                COALESCE(t1.session_id, '') = t2.s_id AND 
-                t1.created_at = t2.max_date
-            LEFT JOIN users u ON t1.user_id = u.id
-            ORDER BY t1.created_at DESC
-        ");
+        $conversations = \App\Models\SupportMessage::with('user')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->unique(function ($item) {
+                return ($item->user_id ?? 0) . '-' . ($item->session_id ?? '');
+            })
+            ->values();
+            
+        $result = $conversations->map(function($msg) {
+            $msg->u_id = $msg->user_id ?? 0;
+            $msg->s_id = $msg->session_id ?? '';
+            $msg->user_name = $msg->user ? $msg->user->name : null;
+            $msg->user_email = $msg->user ? $msg->user->email : null;
+            return $msg;
+        });
 
-        return response()->json($conversations);
+        return response()->json($result);
     }
 
     public function adminGetThread(Request $request)
@@ -134,7 +145,7 @@ class ChatController extends Controller
                     'name' => $user->name,
                     'message' => $validated['message']
                 ];
-                \Illuminate\Support\Facades\Notification::send($user, new \App\Notifications\ChatNotification($messageData, 'customer'));
+                (new \App\Notifications\ChatNotification($messageData, 'customer'))->send($user);
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Chat reply email error: ' . $e->getMessage());

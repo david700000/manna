@@ -192,7 +192,9 @@ class AdminController extends Controller
     // --- Users ---
     public function indexUsers()
     {
-        $users = \App\Models\User::orderBy('created_at', 'desc')->get();
+        $users = \App\Models\User::where('role', '!=', 'customer')
+            ->orderBy('created_at', 'desc')
+            ->get();
         return response()->json($users);
     }
 
@@ -422,5 +424,22 @@ class AdminController extends Controller
             'user'    => $user,
             'message' => 'User invited successfully. Login credentials have been sent to ' . $user->email,
         ], 201);
+    }
+
+    public function purgeOrders(Request $request)
+    {
+        $count = Order::count();
+        \App\Models\OrderItem::query()->delete();
+        Order::query()->delete();
+        return response()->json(['message' => "All {$count} order(s) have been purged successfully."]);
+    }
+
+    public function indexCustomers(Request $request)
+    {
+        $customers = User::where('role', 'customer')
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'name', 'email', 'phone', 'created_at', 'updated_at']);
+
+        return response()->json($customers);
     }
 }
