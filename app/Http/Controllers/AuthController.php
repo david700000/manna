@@ -9,10 +9,8 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
-use App\Notifications\WelcomeUser;
-use App\Notifications\PasswordResetNotification;
-use App\Notifications\RegistrationOtpNotification;
 use Illuminate\Support\Facades\Cache;
+use App\Services\BrevoMailService;
 
 class AuthController extends Controller
 {
@@ -46,14 +44,11 @@ class AuthController extends Controller
             'data' => $validated
         ], now()->addMinutes(15));
 
-        // Create a dummy notifiable to send email
-        $notifiable = (object)['email' => $email];
-        try {
-            \Illuminate\Support\Facades\Notification::route('mail', $email)
-                ->notify(new RegistrationOtpNotification($otp, $validated['name']));
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Registration OTP send failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to send OTP email. Please try again later. Error: ' . $e->getMessage()], 500);
+        // Send OTP via Brevo HTTP API (no SMTP, no timeouts)
+        $sent = BrevoMailService::sendOtp($email, $validated['name'], $otp);
+        if (!$sent) {
+            \Illuminate\Support\Facades\Log::error('Registration OTP send failed for: ' . $email);
+            return response()->json(['message' => 'Failed to send OTP email. Please try again later.'], 500);
         }
 
         return response()->json(['message' => 'OTP sent successfully.']);
@@ -97,7 +92,10 @@ class AuthController extends Controller
 
         Cache::forget("register_otp_{$email}");
 
-        try { (new WelcomeUser())->send($user); } catch (\Throwable $e) {}
+        // Send welcome email via Brevo HTTP API
+        try {
+            BrevoMailService::sendWelcome($email, $user->name);
+        } catch (\Throwable $e) {}
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -211,7 +209,7 @@ class AuthController extends Controller
             );
 
             try {
-                (new PasswordResetNotification($otp, true))->send($user);
+                BrevoMailService::sendPasswordResetOtp($user->email, $user->name, $otp);
             } catch (\Throwable $e) {}
         }
 
