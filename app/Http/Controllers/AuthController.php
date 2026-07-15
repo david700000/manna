@@ -11,17 +11,18 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use App\Notifications\WelcomeUser;
 use App\Notifications\PasswordResetNotification;
+use App\Notifications\RegistrationOtpNotification;
+use Illuminate\Support\Facades\Cache;
 
 class AuthController extends Controller
 {
     // ── Register ──────────────────────────────────────────────────────────────
 
-    public function register(Request $request)
+    public function sendRegistrationOtp(Request $request)
     {
-        // Rate limit: 3 registrations per IP per minute
-        $key = 'register:' . $request->ip();
+        $key = 'send_reg_otp:' . $request->ip();
         if (RateLimiter::tooManyAttempts($key, 3)) {
-            return response()->json(['message' => 'Too many registration attempts. Please try again later.'], 429);
+            return response()->json(['message' => 'Too many attempts. Please try again later.'], 429);
         }
         RateLimiter::hit($key, 60);
 
@@ -37,12 +38,63 @@ class AuthController extends Controller
             'name.regex'     => 'Name contains invalid characters.',
         ]);
 
-        $user = User::create([
-            'name'     => htmlspecialchars(strip_tags(trim($validated['name'])), ENT_QUOTES, 'UTF-8'),
-            'email'    => strtolower(trim($validated['email'])),
-            'password' => $validated['password'],
-            'role'     => 'customer', // Always customer — never trust client input for role
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $email = strtolower(trim($validated['email']));
+
+        Cache::put("register_otp_{$email}", [
+            'otp' => Hash::make($otp),
+            'data' => $validated
+        ], now()->addMinutes(15));
+
+        // Create a dummy notifiable to send email
+        $notifiable = (object)['email' => $email];
+        try {
+            \Illuminate\Support\Facades\Notification::route('mail', $email)
+                ->notify(new RegistrationOtpNotification($otp, $validated['name']));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Registration OTP send failed: ' . $e->getMessage());
+        }
+
+        return response()->json(['message' => 'OTP sent successfully.']);
+    }
+
+    public function register(Request $request)
+    {
+        // Rate limit: 5 registrations per IP per minute
+        $key = 'register:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json(['message' => 'Too many registration attempts. Please try again later.'], 429);
+        }
+        RateLimiter::hit($key, 60);
+
+        $request->validate([
+            'email' => 'required|string|email:rfc,dns|max:255',
+            'otp'   => 'required|string|size:6',
         ]);
+
+        $email = strtolower(trim($request->email));
+        $cached = Cache::get("register_otp_{$email}");
+
+        if (!$cached || !Hash::check($request->otp, $cached['otp'])) {
+            return response()->json(['message' => 'Invalid or expired OTP.'], 400);
+        }
+
+        $validated = $cached['data'];
+
+        // Double check uniqueness just in case
+        if (User::where('email', $email)->exists()) {
+            return response()->json(['message' => 'Email already registered.'], 400);
+        }
+
+        $user = User::create([
+            'name'              => htmlspecialchars(strip_tags(trim($validated['name'])), ENT_QUOTES, 'UTF-8'),
+            'email'             => $email,
+            'password'          => $validated['password'],
+            'role'              => 'customer',
+            'email_verified_at' => now(),
+        ]);
+
+        Cache::forget("register_otp_{$email}");
 
         try { (new WelcomeUser())->send($user); } catch (\Throwable $e) {}
 

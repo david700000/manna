@@ -6,6 +6,7 @@ use App\Http\Controllers\PublicController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\RootController;
 
+Route::post('/auth/send-registration-otp', [AuthController::class, 'sendRegistrationOtp']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -170,7 +171,8 @@ Route::get('/debug-logs', function () {
     return 'No logs found.';
 });
 
-function tail_custom($filepath, $lines = 1) {
+if (!function_exists('tail_custom')) {
+    function tail_custom($filepath, $lines = 1) {
     $f = @fopen($filepath, "rb");
     if ($f === false) return false;
     $cursor = -1;
@@ -192,6 +194,7 @@ function tail_custom($filepath, $lines = 1) {
     array_unshift($arr, $line);
     fclose($f);
     return implode("\n", $arr);
+}
 }
 
 // Support chat messaging (Accessible by guests and authenticated users)
