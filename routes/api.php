@@ -241,6 +241,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders/{id}/confirm-delivery', [\App\Http\Controllers\OrderController::class, 'confirmDelivery']);
     Route::post('/orders/{id}/cancel', [\App\Http\Controllers\OrderController::class, 'cancelOrder']);
 
+    // Wishlist Routes
+    Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index']);
+    Route::post('/wishlist/toggle', [\App\Http\Controllers\WishlistController::class, 'toggle']);
+
     // Payment Route
     Route::post('/payments/{orderId}/initialize', [\App\Http\Controllers\PaymentController::class, 'initialize']);
     Route::get('/payments/{reference}/verify', [\App\Http\Controllers\PaymentController::class, 'verify']);

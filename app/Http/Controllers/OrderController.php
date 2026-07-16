@@ -23,6 +23,7 @@ class OrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'shipping_address' => 'required|string',
             'billing_address' => 'required|string',
+            'customer_phone' => 'nullable|string',
         ]);
 
         try {
@@ -58,13 +59,18 @@ class OrderController extends Controller
 
             $user = $request->user();
 
+            if (empty($user->phone) && !empty($validated['customer_phone'])) {
+                $user->phone = $validated['customer_phone'];
+                $user->save();
+            }
+
             // Create Order using migration schema columns
             $order = Order::create([
                 'reference' => 'ORD-' . strtoupper(Str::random(10)),
                 'user_id' => $user->id,
                 'customer_name' => $user->name,
                 'customer_email' => $user->email,
-                'customer_phone' => $user->phone ?? '',
+                'customer_phone' => $validated['customer_phone'] ?? $user->phone ?? '',
                 'subtotal' => $totalAmount,
                 'total' => $totalAmount,
                 'status' => 'pending',
