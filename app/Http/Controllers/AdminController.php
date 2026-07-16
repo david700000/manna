@@ -159,7 +159,7 @@ class AdminController extends Controller
 
     public function updateOrderStatus(Request $request, $id)
     {
-        $order = Order::findOrFail($id);
+        $order = Order::with('user')->findOrFail($id);
         
         $validated = $request->validate([
             'status' => 'required|in:pending,processing,shipped,delivered,cancelled,paid,failed',
@@ -167,9 +167,16 @@ class AdminController extends Controller
 
         $oldStatus = $order->status;
         $order->update($validated);
+        $order->refresh();
 
         if ($oldStatus !== $order->status) {
-            try { (new OrderStatusUpdate($order))->send($order->user); } catch (\Throwable $e) {}
+            try { 
+                if ($order->user) {
+                    (new OrderStatusUpdate($order))->send($order->user);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Order status email failed: ' . $e->getMessage());
+            }
 
             // Insert system message into chat
             try {

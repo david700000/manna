@@ -21,13 +21,13 @@ class OrderStatusUpdate
         $shopUrl  = config('app.frontend_url', 'https://mannabridal.netlify.app');
 
         $statusLabels = [
-            'pending'    => ['label' => 'Order Received',    'color' => '#F59E0B', 'icon' => '📦'],
-            'processing' => ['label' => 'Being Processed',   'color' => '#3B82F6', 'icon' => '⚙️'],
-            'shipped'    => ['label' => 'Shipped',            'color' => '#8B5CF6', 'icon' => '🚚'],
-            'delivered'  => ['label' => 'Delivered',          'color' => '#10B981', 'icon' => '✅'],
-            'paid'       => ['label' => 'Payment Confirmed',  'color' => '#10B981', 'icon' => '💳'],
-            'cancelled'  => ['label' => 'Cancelled',          'color' => '#EF4444', 'icon' => '❌'],
-            'failed'     => ['label' => 'Payment Failed',     'color' => '#EF4444', 'icon' => '⚠️'],
+            'pending'    => ['label' => 'Order Placed',       'color' => '#F59E0B', 'icon' => '📦'],
+            'processing' => ['label' => 'Being Processed',    'color' => '#3B82F6', 'icon' => '⚙️'],
+            'shipped'    => ['label' => 'Shipped',             'color' => '#8B5CF6', 'icon' => '🚚'],
+            'delivered'  => ['label' => 'Delivered',           'color' => '#10B981', 'icon' => '✅'],
+            'paid'       => ['label' => 'Payment Confirmed',   'color' => '#10B981', 'icon' => '💳'],
+            'cancelled'  => ['label' => 'Cancelled',           'color' => '#EF4444', 'icon' => '❌'],
+            'failed'     => ['label' => 'Payment Failed',      'color' => '#EF4444', 'icon' => '⚠️'],
         ];
 
         $info = $statusLabels[$status] ?? ['label' => ucfirst($status), 'color' => '#F47B20', 'icon' => '📋'];
