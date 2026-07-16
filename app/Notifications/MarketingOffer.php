@@ -31,8 +31,9 @@ class MarketingOffer
             <p style="color:#999;font-size:12px;">Manna Bridal — You are receiving this because you are a registered customer.</p>
         </div>';
 
-        return app(BrevoMailService::class)->send(
-            ['email' => $notifiable->email, 'name' => $notifiable->name],
+        return BrevoMailService::send(
+            $notifiable->email,
+            $notifiable->name,
             $this->offerData['subject'],
             $html
         );

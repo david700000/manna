@@ -31,8 +31,9 @@ class OrderPlacedAdminNotification
             <p style="color:#999;font-size:12px;">Manna Bridal Admin</p>
         </div>';
 
-        return app(BrevoMailService::class)->send(
-            ['email' => $notifiable->email, 'name' => $notifiable->name],
+        return BrevoMailService::send(
+            $notifiable->email,
+            $notifiable->name,
             'New Order — ' . $this->order->reference,
             $html
         );

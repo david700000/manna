@@ -30,8 +30,9 @@ class LowStockNotification
             <p style="color:#999;font-size:12px;">Manna Bridal Admin</p>
         </div>';
 
-        return app(BrevoMailService::class)->send(
-            ['email' => $notifiable->email, 'name' => $notifiable->name],
+        return BrevoMailService::send(
+            $notifiable->email,
+            $notifiable->name,
             'Low Stock Alert — ' . $this->product->name,
             $html
         );

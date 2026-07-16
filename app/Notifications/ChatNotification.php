@@ -45,8 +45,9 @@ class ChatNotification
             <p style="color:#999;font-size:12px;">Manna Bridal</p>
         </div>';
 
-        return app(BrevoMailService::class)->send(
-            ['email' => $notifiable->email, 'name' => $notifiable->name ?? 'User'],
+        return BrevoMailService::send(
+            $notifiable->email,
+            $notifiable->name ?? 'User',
             $subject,
             $html
         );
