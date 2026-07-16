@@ -33,25 +33,30 @@ class OrderStatusUpdate
         $info = $statusLabels[$status] ?? ['label' => ucfirst($status), 'color' => '#F47B20', 'icon' => '📋'];
 
         $html = '
-        <div style="font-family:Arial,sans-serif;max-width:580px;margin:auto;padding:32px 24px;background:#fff;border-radius:12px;">
+        <div style="font-family:\'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:auto;padding:32px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.05);">
           <div style="text-align:center;margin-bottom:24px;">
-            <div style="display:inline-block;background:#F47B20;color:#fff;font-size:22px;font-weight:900;padding:10px 22px;border-radius:8px;letter-spacing:1px;">MANNA BRIDAL</div>
+            <div style="display:inline-block;background:#FAF3F0;color:#F47B20;font-size:24px;font-weight:900;padding:12px 24px;border-radius:12px;letter-spacing:1px;">MANNA BRIDAL ✨</div>
           </div>
-          <h2 style="color:#1A1A2E;font-size:20px;">' . $info['icon'] . ' Order Update</h2>
-          <p style="color:#444;font-size:14px;">Hello <strong>' . e($notifiable->name) . '</strong>,</p>
-          <p style="color:#444;font-size:14px;">Your order <strong>' . e($ref) . '</strong> status has been updated.</p>
-          <div style="background:#FAF3F0;border-radius:10px;padding:20px;margin:16px 0;text-align:center;">
-            <p style="margin:0;font-size:13px;color:#888;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Current Status</p>
-            <p style="margin:8px 0 0;font-size:22px;font-weight:900;color:' . $info['color'] . ';">' . $info['label'] . '</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#aaa;">Order Ref: ' . e($ref) . '</p>
+          <h2 style="color:#1A1A2E;text-align:center;font-size:24px;margin-bottom:8px;">' . $info['icon'] . ' Order Update</h2>
+          <p style="color:#666;text-align:center;font-size:15px;margin-top:0;">Hello <strong>' . e($notifiable->name) . '</strong>,</p>
+          <p style="color:#666;text-align:center;font-size:15px;">Your order <strong>' . e($ref) . '</strong> status has been updated.</p>
+          
+          <div style="background:#FAF3F0;border-radius:12px;padding:24px;margin:32px 0;text-align:center;">
+            <p style="margin:0;font-size:13px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Current Status</p>
+            <p style="margin:8px 0 0;font-size:24px;font-weight:900;color:' . $info['color'] . ';">' . $info['label'] . '</p>
+            <p style="margin:6px 0 0;font-size:13px;color:#aaa;">Order Ref: ' . e($ref) . '</p>
           </div>
-          <a href="' . $shopUrl . '"
-             style="display:inline-block;padding:13px 28px;background:#F47B20;color:#fff;text-decoration:none;border-radius:8px;margin:8px 0;font-weight:bold;font-size:14px;">
-             Track My Order →
-          </a>
-          <p style="color:#888;font-size:13px;margin-top:16px;">Thank you for shopping with Manna Bridal!</p>
-          <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-          <p style="color:#bbb;font-size:11px;text-align:center;">Manna Bridal &mdash; Premium Bridal Collections</p>
+          
+          <div style="text-align:center;margin-top:32px;">
+            <a href="' . $shopUrl . '"
+               style="display:inline-block;padding:14px 36px;background:#F47B20;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(244,123,32,0.2);">
+               Track My Order →
+            </a>
+          </div>
+          
+          <p style="color:#888;font-size:14px;text-align:center;margin-top:32px;">Thank you for shopping with Manna Bridal!</p>
+          <hr style="border:none;border-top:1px solid #E8E0D8;margin:32px 0;">
+          <p style="color:#999;font-size:12px;text-align:center;text-transform:uppercase;letter-spacing:1px;">Manna Bridal &mdash; Premium Bridal Collections</p>
         </div>';
 
         return BrevoMailService::send(

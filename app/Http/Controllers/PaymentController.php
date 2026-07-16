@@ -196,8 +196,15 @@ class PaymentController extends Controller
     {
         // Use metadata.order_reference if set (new format)
         $orderRef = null;
-        if (isset($data['metadata']) && is_array($data['metadata']) && isset($data['metadata']['order_reference'])) {
-            $orderRef = $data['metadata']['order_reference'];
+        $metadata = $data['metadata'] ?? null;
+        
+        // Sometimes Paystack returns metadata as a JSON string
+        if (is_string($metadata)) {
+            $metadata = json_decode($metadata, true);
+        }
+
+        if (is_array($metadata) && isset($metadata['order_reference'])) {
+            $orderRef = $metadata['order_reference'];
         }
         
         // If not found in metadata, try extracting from the attempt reference (e.g. ORD-XXXX-time-rand)
@@ -232,12 +239,15 @@ class PaymentController extends Controller
                 'raw_response'          => json_encode($data)
             ]);
 
-            // Send payment confirmation email to customer
+            // Send payment confirmation emails
             try {
                 $order->load('user', 'items.product');
                 if ($order->user) {
                     (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
                 }
+                
+                $adminUser = (object)['email' => 'mannabridalsupport@gmail.com', 'name' => 'Admin'];
+                (new \App\Notifications\OrderPlacedAdminNotification($order))->send($adminUser);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Payment confirmation email failed: ' . $e->getMessage());
             }
@@ -249,9 +259,16 @@ class PaymentController extends Controller
     private function processFailedPayment($data, $statusStr)
     {
         $orderRef = null;
-        if (isset($data['metadata']) && is_array($data['metadata']) && isset($data['metadata']['order_reference'])) {
-            $orderRef = $data['metadata']['order_reference'];
+        $metadata = $data['metadata'] ?? null;
+
+        if (is_string($metadata)) {
+            $metadata = json_decode($metadata, true);
         }
+
+        if (is_array($metadata) && isset($metadata['order_reference'])) {
+            $orderRef = $metadata['order_reference'];
+        }
+        
         if (!$orderRef && isset($data['reference'])) {
             $parts = explode('-', $data['reference']);
             if (count($parts) >= 2) {
@@ -288,6 +305,16 @@ class PaymentController extends Controller
                 'payment_method'        => $data['channel'] ?? 'card',
                 'raw_response'          => json_encode($data)
             ]);
+
+            // Send payment failed notification
+            try {
+                $order->load('user');
+                if ($order->user) {
+                    (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Payment failed email failed: ' . $e->getMessage());
+            }
         }
     }
 }

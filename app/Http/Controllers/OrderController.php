@@ -86,13 +86,6 @@ class OrderController extends Controller
             // Load relations for notifications and response
             $order->load('items.product', 'user');
 
-            // Send notification to customer
-            try { (new OrderStatusUpdate($order))->send($user); } catch (\Throwable $e) {}
-
-            // Send notification to admin
-            $adminUser = (object)['email' => 'mannabridalsupport@gmail.com', 'name' => 'Admin'];
-            try { (new OrderPlacedAdminNotification($order))->send($adminUser); } catch (\Throwable $e) {}
-
             return response()->json($order, 201);
 
         } catch (\Exception $e) {
@@ -143,5 +136,27 @@ class OrderController extends Controller
         } catch (\Throwable $e) {}
 
         return response()->json(['message' => 'Delivery confirmed successfully', 'order' => $order]);
+    }
+
+    public function cancelOrder(Request $request, $id)
+    {
+        $order = $request->user()->orders()->findOrFail($id);
+
+        if (in_array($order->status, ['shipped', 'in transit', 'delivered', 'cancelled'])) {
+            return response()->json(['message' => "Order cannot be cancelled because it is already {$order->status}."], 400);
+        }
+
+        $order->update(['status' => 'cancelled']);
+
+        try {
+            $order->load('user');
+            if ($order->user) {
+                (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Order cancel email failed: ' . $e->getMessage());
+        }
+
+        return response()->json(['message' => 'Order cancelled successfully', 'order' => $order]);
     }
 }
