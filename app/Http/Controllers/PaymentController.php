@@ -224,8 +224,24 @@ class PaymentController extends Controller
             $order = Order::where('reference', $data['reference'])->first();
         }
         
+        // Final fallback: Match by email, exact amount, and unpaid status
+        if (!$order && isset($data['amount']) && isset($data['customer']['email'])) {
+            $order = Order::where('customer_email', $data['customer']['email'])
+                          ->where('payment_status', 'unpaid')
+                          ->where('total', $data['amount'] / 100)
+                          ->latest()
+                          ->first();
+        }
+        
         if ($order && $order->payment_status !== 'paid') {
             $order->update(['payment_status' => 'paid', 'status' => 'paid']);
+            
+            // Auto-deduct stock
+            foreach ($order->items as $item) {
+                if ($item->product) {
+                    $item->product->decrement('stock', $item->quantity);
+                }
+            }
             
             // Record payment
             Payment::create([

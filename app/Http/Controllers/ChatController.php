@@ -13,20 +13,13 @@ class ChatController extends Controller
 
     public function getMessages(Request $request)
     {
-        $sessionId = $request->header('X-Session-ID') ?: $request->input('session_id');
         $user = auth('sanctum')->user();
 
-        $query = SupportMessage::query();
-
-        if ($user) {
-            // For logged in users, we fetch their messages
-            $query->where('user_id', $user->id);
-        } else if ($sessionId) {
-            // For guests, we fetch by session ID
-            $query->where('session_id', $sessionId)->whereNull('user_id');
-        } else {
-            return response()->json([]);
+        if (!$user) {
+            return response()->json([], 401);
         }
+
+        $query = SupportMessage::where('user_id', $user->id);
 
         return response()->json($query->orderBy('created_at', 'asc')->get());
     }
@@ -35,28 +28,26 @@ class ChatController extends Controller
     {
         $validated = $request->validate([
             'message' => 'required|string',
-            'session_id' => 'nullable|string',
         ]);
 
-        $sessionId = $request->header('X-Session-ID') ?: $request->input('session_id');
         $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
 
-        $isFirst = SupportMessage::where(function($q) use ($user, $sessionId) {
-            if ($user) $q->where('user_id', $user->id);
-            else $q->where('session_id', $sessionId)->whereNull('user_id');
-        })->count() === 0;
+        $isFirst = SupportMessage::where('user_id', $user->id)->count() === 0;
 
         $message = SupportMessage::create([
-            'user_id' => $user ? $user->id : null,
-            'session_id' => $sessionId,
+            'user_id' => $user->id,
+            'session_id' => null,
             'is_admin_reply' => false,
             'message' => $validated['message'],
         ]);
 
         if ($isFirst) {
             SupportMessage::create([
-                'user_id' => $user ? $user->id : null,
-                'session_id' => $sessionId,
+                'user_id' => $user->id,
+                'session_id' => null,
                 'is_admin_reply' => true,
                 'message' => 'Thank you for reaching out! We will connect you to our sales rep shortly. 😊',
             ]);
