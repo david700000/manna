@@ -39,8 +39,9 @@ class AdminInvitationNotification
           <p style="color:#bbb;font-size:11px;text-align:center;">Manna Bridal &mdash; Admin Portal</p>
         </div>';
 
-        return app(BrevoMailService::class)->send(
-            ['email' => $notifiable->email, 'name' => $notifiable->name],
+        return BrevoMailService::send(
+            $notifiable->email,
+            $notifiable->name,
             'Manna Bridal — You\'ve Been Invited to the Admin Team',
             $html
         );
