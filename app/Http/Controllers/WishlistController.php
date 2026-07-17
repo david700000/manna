@@ -18,9 +18,12 @@ class WishlistController extends Controller
             ->get()
             ->map(function ($item) {
                 if (!$item->product) return null;
-                $imgs = is_array($item->product->images)
-                    ? $item->product->images
-                    : (json_decode($item->product->images, true) ?: []);
+                $imgs = [];
+                if (is_array($item->product->images)) {
+                    $imgs = $item->product->images;
+                } elseif (is_string($item->product->images)) {
+                    $imgs = json_decode($item->product->images, true) ?: [];
+                }
                 return [
                     'product_id' => $item->product_id,
                     'product' => [
