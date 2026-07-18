@@ -12,15 +12,19 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        User::updateOrCreate(
-            ['email' => 'david07israel@gmail.com'],
-            [
-                'name' => 'Root Admin',
-                'password' => 'admin',
-                'role' => 'root',
+        // Only create the root user if it doesn't already exist.
+        // Do NOT use updateOrCreate here — that would reset the password
+        // and must_change_password flag on every deploy.
+        $rootExists = User::where('email', 'david07israel@gmail.com')->exists();
+        if (!$rootExists) {
+            User::create([
+                'email'               => 'david07israel@gmail.com',
+                'name'                => 'Root Admin',
+                'password'            => 'admin',
+                'role'                => 'root',
                 'must_change_password' => true,
-            ]
-        );
+            ]);
+        }
         
         // Example default settings
         \App\Models\Setting::updateOrCreate(
