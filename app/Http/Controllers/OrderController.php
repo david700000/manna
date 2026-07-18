@@ -120,7 +120,16 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order is already marked as delivered.'], 400);
         }
 
-        $order->update(['status' => 'delivered']);
+        $history = $order->status_history ?? [];
+        $history[] = [
+            'status' => 'delivered',
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        $order->update([
+            'status' => 'delivered',
+            'status_history' => $history
+        ]);
 
         // Send notification to admin/system about customer confirmation
         try {
@@ -152,7 +161,16 @@ class OrderController extends Controller
             return response()->json(['message' => "Order cannot be cancelled because it is already {$order->status}."], 400);
         }
 
-        $order->update(['status' => 'cancelled']);
+        $history = $order->status_history ?? [];
+        $history[] = [
+            'status' => 'cancelled',
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        $order->update([
+            'status' => 'cancelled',
+            'status_history' => $history
+        ]);
 
         try {
             $order->load('user');

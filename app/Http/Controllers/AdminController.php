@@ -163,10 +163,24 @@ class AdminController extends Controller
         
         $validated = $request->validate([
             'status' => 'required|in:pending,processing,shipped,delivered,cancelled,paid,failed',
+            'courier_name' => 'nullable|string|max:255',
+            'tracking_number' => 'nullable|string|max:255',
+            'tracking_url' => 'nullable|string|max:1000',
         ]);
 
         $oldStatus = $order->status;
         $order->update($validated);
+        
+        if ($oldStatus !== $validated['status']) {
+            $history = $order->status_history ?? [];
+            $history[] = [
+                'status' => $validated['status'],
+                'timestamp' => now()->toIso8601String(),
+            ];
+            $order->status_history = $history;
+            $order->save();
+        }
+        
         $order->refresh();
 
         if ($oldStatus !== $order->status) {
@@ -238,6 +252,7 @@ class AdminController extends Controller
             'start'     => 'nullable|date',
             'end'       => 'nullable|date',
             'status'    => 'nullable|in:active,draft',
+            'cta'       => 'nullable|string',
         ]);
 
         $banner = \App\Models\Banner::create([
@@ -247,6 +262,7 @@ class AdminController extends Controller
             'status'     => $request->input('status', 'active'),
             'start_date' => $request->input('start') ?: null,
             'end_date'   => $request->input('end') ?: null,
+            'cta'        => $request->input('cta') ?: null,
         ]);
 
         return response()->json($banner, 201);
@@ -263,6 +279,7 @@ class AdminController extends Controller
             'start'     => 'nullable|date',
             'end'       => 'nullable|date',
             'status'    => 'nullable|in:active,draft',
+            'cta'       => 'nullable|string',
         ]);
 
         $data = [];
@@ -272,6 +289,7 @@ class AdminController extends Controller
         if ($request->has('status'))    $data['status']     = $request->input('status');
         if ($request->has('start'))     $data['start_date'] = $request->input('start') ?: null;
         if ($request->has('end'))       $data['end_date']   = $request->input('end') ?: null;
+        if ($request->has('cta'))       $data['cta']        = $request->input('cta') ?: null;
 
         $banner->update($data);
         return response()->json($banner->fresh());

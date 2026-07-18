@@ -46,6 +46,13 @@ class OrderStatusUpdate
             <p style="margin:8px 0 0;font-size:24px;font-weight:900;color:' . $info['color'] . ';">' . $info['label'] . '</p>
             <p style="margin:6px 0 0;font-size:13px;color:#aaa;">Order Ref: ' . e($ref) . '</p>
           </div>
+          ' . ($status === "shipped" && $this->order->tracking_number ? '
+          <div style="background:#F2F7F4;border-radius:12px;padding:24px;margin:32px 0;text-align:center;">
+            <p style="margin:0;font-size:13px;color:#2EAD6E;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Shipping Details</p>
+            <p style="margin:8px 0 0;font-size:16px;font-weight:700;color:#1A2820;">Courier: ' . e($this->order->courier_name ?? "Standard Shipping") . '</p>
+            <p style="margin:6px 0 0;font-size:16px;font-weight:700;color:#1A2820;">Tracking No: ' . e($this->order->tracking_number) . '</p>
+            ' . ($this->order->tracking_url ? '<p style="margin:12px 0 0;"><a href="'.e($this->order->tracking_url).'" style="color:#F47B20;font-weight:700;text-decoration:none;">Click here to track your package →</a></p>' : '') . '
+          </div>' : '') . '
           
           <div style="text-align:center;margin-top:32px;">
             <a href="' . $shopUrl . '"
