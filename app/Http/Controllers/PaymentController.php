@@ -300,24 +300,18 @@ class PaymentController extends Controller
         }
 
         if ($order && $order->payment_status !== 'paid') {
-            $newStatus = strtolower($statusStr);
-            if ($newStatus === 'abandoned') {
-                $newStatus = 'cancelled';
-            }
-            
-            // Limit to allowed enum values or set as failed
-            if (!in_array($newStatus, ['failed', 'cancelled'])) {
-                $newStatus = 'failed';
-            }
+            // payment_status enum only allows: unpaid, paid, failed
+            // order status enum only allows: pending, processing, shipped, delivered, cancelled
+            $paymentNewStatus = 'failed'; // always 'failed' for non-successful payments
 
-            $order->update(['payment_status' => $newStatus, 'status' => 'cancelled']);
+            $order->update(['payment_status' => $paymentNewStatus, 'status' => 'cancelled']);
             
             Payment::create([
                 'order_id'              => $order->id,
                 'monnify_reference'     => null,
                 'transaction_reference' => $data['reference'],
                 'amount'                => ($data['amount'] ?? 0) / 100,
-                'status'                => $newStatus === 'cancelled' ? 'failed' : $newStatus,
+                'status'                => 'failed',
                 'payment_method'        => $data['channel'] ?? 'card',
                 'raw_response'          => json_encode($data)
             ]);
