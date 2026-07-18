@@ -108,7 +108,7 @@ class PaymentController extends Controller
 
             foreach ($transactions as $txn) {
                 if ($txn['status'] === 'success') {
-                    $order->update(['payment_status' => 'paid', 'status' => 'paid']);
+                    $order->update(['payment_status' => 'paid', 'status' => 'processing']);
 
                     $exists = Payment::where('transaction_reference', $txn['reference'])->exists();
                     if (!$exists) {
@@ -234,7 +234,7 @@ class PaymentController extends Controller
         }
         
         if ($order && $order->payment_status !== 'paid') {
-            $order->update(['payment_status' => 'paid', 'status' => 'paid']);
+            $order->update(['payment_status' => 'paid', 'status' => 'processing']);
             
             // Auto-deduct stock
             foreach ($order->items as $item) {
@@ -310,14 +310,14 @@ class PaymentController extends Controller
                 $newStatus = 'failed';
             }
 
-            $order->update(['payment_status' => $newStatus, 'status' => $newStatus]);
+            $order->update(['payment_status' => $newStatus, 'status' => 'cancelled']);
             
             Payment::create([
                 'order_id'              => $order->id,
                 'monnify_reference'     => null,
                 'transaction_reference' => $data['reference'],
                 'amount'                => ($data['amount'] ?? 0) / 100,
-                'status'                => $newStatus,
+                'status'                => $newStatus === 'cancelled' ? 'failed' : $newStatus,
                 'payment_method'        => $data['channel'] ?? 'card',
                 'raw_response'          => json_encode($data)
             ]);
