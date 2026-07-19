@@ -42,6 +42,7 @@ class AdminController extends Controller
             'stock' => 'required|integer',
             'status' => 'required|in:active,draft,archived',
             'category_id' => 'nullable|exists:categories,id',
+            'existing_images' => 'nullable|array',
         ]);
 
         // Validate uploaded image files separately (field name is 'images' from multipart images[])
@@ -49,7 +50,7 @@ class AdminController extends Controller
             $request->validate(['images.*' => 'image|max:10240']);
         }
 
-        $imagePaths = [];
+        $imagePaths = $request->input('existing_images', []);
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $imagePaths[] = $this->uploadImage($image, 'products');

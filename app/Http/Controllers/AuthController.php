@@ -34,6 +34,7 @@ class AuthController extends Controller
         ], [
             'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
             'name.regex'     => 'Name contains invalid characters.',
+            'email.unique'   => 'already used',
         ]);
 
         $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -79,7 +80,7 @@ class AuthController extends Controller
 
         // Double check uniqueness just in case
         if (User::where('email', $email)->exists()) {
-            return response()->json(['message' => 'Email already registered.'], 400);
+            return response()->json(['message' => 'already used'], 400);
         }
 
         $user = User::create([

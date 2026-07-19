@@ -36,30 +36,32 @@ class BrevoMailService
         $fromEmail = env('MAIL_FROM_ADDRESS', 'mannabridalsupport@gmail.com');
         $fromName  = env('MAIL_FROM_NAME', 'Manna Bridal');
 
-        $response = Http::timeout(10)
-            ->withHeaders([
-                'api-key'      => $apiKey,
-                'Content-Type' => 'application/json',
-                'Accept'       => 'application/json',
-            ])
-            ->post(self::API_URL, [
-                'sender'      => ['name' => $fromName, 'email' => $fromEmail],
-                'to'          => [['email' => $toEmail, 'name' => $toName]],
-                'subject'     => $subject,
-                'htmlContent' => $htmlContent,
-            ]);
+        defer(function () use ($apiKey, $fromEmail, $fromName, $toEmail, $toName, $subject, $htmlContent) {
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'api-key'      => $apiKey,
+                    'Content-Type' => 'application/json',
+                    'Accept'       => 'application/json',
+                ])
+                ->post(self::API_URL, [
+                    'sender'      => ['name' => $fromName, 'email' => $fromEmail],
+                    'to'          => [['email' => $toEmail, 'name' => $toName]],
+                    'subject'     => $subject,
+                    'htmlContent' => $htmlContent,
+                ]);
 
-        if (!$response->successful()) {
-            Log::error('BrevoMailService: Failed to send email.', [
-                'to'       => $toEmail,
-                'subject'  => $subject,
-                'status'   => $response->status(),
-                'response' => $response->body(),
-            ]);
-            return false;
-        }
+            if (!$response->successful()) {
+                Log::error('BrevoMailService: Failed to send email.', [
+                    'to'       => $toEmail,
+                    'subject'  => $subject,
+                    'status'   => $response->status(),
+                    'response' => $response->body(),
+                ]);
+            } else {
+                Log::info('BrevoMailService: Email sent.', ['to' => $toEmail, 'subject' => $subject]);
+            }
+        });
 
-        Log::info('BrevoMailService: Email sent.', ['to' => $toEmail, 'subject' => $subject]);
         return true;
     }
 
