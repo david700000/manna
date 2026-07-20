@@ -299,7 +299,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/reverify-payments', [\App\Http\Controllers\PaymentController::class, 'adminReverifyAll']);
 
         Route::get('/logs', [RootController::class, 'getLogs']);
-        Route::post('/purge', [RootController::class, 'purgeData']);
+        Route::post('/purge', [RootController::class, 'purgeSystem']);
+        Route::post('/purge-data', [RootController::class, 'purgeData']);
+        Route::post('/purge-users', [RootController::class, 'purgeUsers']);
 
         Route::post('/broadcast', [RootController::class, 'broadcastToAll']);
         Route::get('/report', [RootController::class, 'downloadReport']);

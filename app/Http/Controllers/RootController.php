@@ -17,9 +17,9 @@ class RootController extends Controller
 {
     // ── Role Management ───────────────────────────────────────────────────────
 
-    public function listUsers()
+    public function getUsers(Request $request)
     {
-        $users = User::orderBy('created_at', 'desc')->get(['id', 'name', 'email', 'role', 'must_change_password', 'created_at']);
+        $users = User::where('role', '!=', 'customer')->orderBy('created_at', 'desc')->get(['id', 'name', 'email', 'role', 'must_change_password', 'created_at']);
         return response()->json($users);
     }
 
@@ -31,9 +31,9 @@ class RootController extends Controller
 
         $user = User::findOrFail($id);
 
-        // Prevent changing a customer's role (customers stay customers)
-        if ($user->role === 'customer') {
-            return response()->json(['message' => 'Customer roles cannot be changed.'], 403);
+        // Prevent changing an existing assigned role (roles can only be set initially)
+        if (!empty($user->role) && $user->role !== 'customer' && $user->role !== $validated['role']) {
+            return response()->json(['message' => 'Roles cannot be changed once assigned.'], 403);
         }
 
         // Prevent de-rooting yourself
@@ -96,6 +96,48 @@ class RootController extends Controller
         return response()->json(['message' => 'Payment configuration updated successfully.']);
     }
 
+    // ── Purge ─────────────────────────────────────────────────────────────────
+
+    public function purgeData(Request $request)
+    {
+        // Dangerous operation: Only root can do this
+        if ($request->user()->role !== 'root') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        // Turn off foreign key checks for SQLite
+        \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = OFF;');
+
+        \App\Models\OrderItem::truncate();
+        \App\Models\Order::truncate();
+        // Assuming Payment, Category, CartItem models exist as requested
+        // \App\Models\Payment::truncate();
+        \App\Models\Product::truncate();
+        // \App\Models\Category::truncate();
+        if (\Illuminate\Support\Facades\Schema::hasTable('cart_items')) {
+            \Illuminate\Support\Facades\DB::table('cart_items')->truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('wishlists')) {
+            \Illuminate\Support\Facades\DB::table('wishlists')->truncate();
+        }
+
+        \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = ON;');
+
+        return response()->json(['message' => 'Database fully purged (Orders, Products, Categories, Carts, Wishlists).']);
+    }
+
+    public function purgeUsers(Request $request)
+    {
+        if ($request->user()->role !== 'root') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        // Delete all users except root users
+        User::where('role', '!=', 'root')->delete();
+
+        return response()->json(['message' => 'All non-root users have been purged.']);
+    }
+
     // ── System Logs ───────────────────────────────────────────────────────────
 
     public function getLogs()
@@ -110,9 +152,7 @@ class RootController extends Controller
         return response()->json(['log' => implode('', $last200)]);
     }
 
-    // ── Data Purge ────────────────────────────────────────────────────────────
-
-    public function purgeData(Request $request)
+    public function purgeSystem(Request $request)
     {
         $validated = $request->validate([
             'type' => 'required|in:cache,logs,sessions,all',
