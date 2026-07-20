@@ -33,6 +33,11 @@ class AdminController extends Controller
         return '/storage/' . $path;
     }
 
+    public function indexProducts()
+    {
+        return response()->json(Product::with('category')->get());
+    }
+
     public function storeProduct(Request $request)
     {
         $validated = $request->validate([

@@ -254,6 +254,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/chat/thread', [\App\Http\Controllers\ChatController::class, 'adminGetThread']);
     Route::post('/admin/chat/reply', [\App\Http\Controllers\ChatController::class, 'adminReply']);
     Route::middleware('role:superadmin,manager,inventory,staff,root')->prefix('admin')->group(function () {
+        Route::get('/products', [AdminController::class, 'indexProducts']);
         Route::post('/products', [AdminController::class, 'storeProduct']);
         Route::put('/products/{id}', [AdminController::class, 'updateProduct']); // Uses POST with _method=PUT from frontend
         Route::delete('/products/{id}', [AdminController::class, 'destroyProduct']);
