@@ -24,7 +24,7 @@ class ChatNotification
         if ($this->type === 'admin') {
             // Customer sent a message to Admin
             $subject = 'New Chat Message from ' . ($this->data['name'] ?? 'Customer');
-            $headerTitle = 'New Chat Message 💬';
+            $headerTitle = 'New Chat Message ';
             $introText = 'Hello Admin,<br><br><strong>' . e($this->data['name'] ?? 'Customer') . '</strong> has sent a new message in the chat:';
             $messageBlock = '<div style="margin:20px 0;padding:15px;background:#f9f9f9;border-left:4px solid #F47B20;font-style:italic;color:#555;">
                 "' . nl2br(e($this->data['message'])) . '"
@@ -32,7 +32,7 @@ class ChatNotification
         } else {
             // Admin replied to Customer
             $subject = 'New Message from Manna Bridal';
-            $headerTitle = 'New Message from Manna Bridal 💬';
+            $headerTitle = 'New Message from Manna Bridal ';
             $introText = 'Hello <strong>' . e($this->data['name'] ?? 'Customer') . '</strong>,<br><br>The seller has sent you a new message regarding your inquiry.';
             $messageBlock = ''; // Do not include the actual message content
         }

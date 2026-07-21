@@ -70,7 +70,7 @@ class BrevoMailService
      */
     public static function sendOtp(string $toEmail, string $toName, string $otp): bool
     {
-        $subject = 'Verify your email – Manna Bridal';
+        $subject = 'Verify your email  Manna Bridal';
         $html = '
 <!DOCTYPE html>
 <html>
@@ -84,7 +84,7 @@ class BrevoMailService
     </div>
     <p style="color:#999; font-size:13px;">If you did not create an account, you can safely ignore this email.</p>
     <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
-    <p style="color:#bbb; font-size:12px; text-align:center;">© ' . date('Y') . ' Manna Bridal. All rights reserved.</p>
+    <p style="color:#bbb; font-size:12px; text-align:center;"> ' . date('Y') . ' Manna Bridal. All rights reserved.</p>
   </div>
 </body>
 </html>';
@@ -97,7 +97,7 @@ class BrevoMailService
      */
     public static function sendPasswordResetOtp(string $toEmail, string $toName, string $otp): bool
     {
-        $subject = 'Password Reset OTP – Manna Bridal';
+        $subject = 'Password Reset OTP  Manna Bridal';
         $html = '
 <!DOCTYPE html>
 <html>
@@ -111,7 +111,7 @@ class BrevoMailService
     </div>
     <p style="color:#999; font-size:13px;">If you did not request this, ignore this email. Your password will not change.</p>
     <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
-    <p style="color:#bbb; font-size:12px; text-align:center;">© ' . date('Y') . ' Manna Bridal. All rights reserved.</p>
+    <p style="color:#bbb; font-size:12px; text-align:center;"> ' . date('Y') . ' Manna Bridal. All rights reserved.</p>
   </div>
 </body>
 </html>';
@@ -130,14 +130,14 @@ class BrevoMailService
 <html>
 <body style="font-family: Arial, sans-serif; background: #f4f4f4; padding: 30px;">
   <div style="max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-    <h2 style="color: #1A1A2E;">Welcome, ' . htmlspecialchars($toName) . '! 🎉</h2>
+    <h2 style="color: #1A1A2E;">Welcome, ' . htmlspecialchars($toName) . '! </h2>
     <p style="color: #555;">Your account at <strong>Manna Bridal</strong> has been successfully created.</p>
     <p style="color: #555;">Browse our collection and find your perfect bridal look.</p>
     <div style="text-align:center; margin:24px 0;">
       <a href="' . env('FRONTEND_URL', 'https://mannabridal.netlify.app') . '" style="background:#F47B20; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">Shop Now</a>
     </div>
     <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
-    <p style="color:#bbb; font-size:12px; text-align:center;">© ' . date('Y') . ' Manna Bridal. All rights reserved.</p>
+    <p style="color:#bbb; font-size:12px; text-align:center;"> ' . date('Y') . ' Manna Bridal. All rights reserved.</p>
   </div>
 </body>
 </html>';

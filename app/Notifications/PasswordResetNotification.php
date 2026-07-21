@@ -18,7 +18,7 @@ class PasswordResetNotification
     public function send(object $notifiable): bool
     {
         if ($this->isOtp) {
-            // ── OTP email ──────────────────────────────────────────────────
+            //  OTP email 
             $otp = $this->token;
             $html = '
             <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px 24px;background:#fff;border-radius:12px;">
@@ -34,7 +34,7 @@ class PasswordResetNotification
               </div>
               <p style="color:#999;font-size:12px;text-align:center;">If you did not request a password reset, please ignore this email.</p>
               <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-              <p style="color:#bbb;font-size:11px;text-align:center;">Manna Bridal &mdash; Premium Bridal Collections</p>
+              <p style="color:#bbb;font-size:11px;text-align:center;">Manna Bridal - Premium Bridal Collections</p>
             </div>';
 
             return BrevoMailService::send(
@@ -45,7 +45,7 @@ class PasswordResetNotification
             );
         }
 
-        // ── Legacy link email (kept for compatibility) ─────────────────────
+        //  Legacy link email (kept for compatibility) 
         $url = config('app.frontend_url', 'http://localhost:3000')
              . '/reset-password?token=' . $this->token
              . '&email=' . urlencode($notifiable->email);

@@ -19,7 +19,7 @@ class OrderPlacedAdminNotification
         $html = '
         <div style="font-family:\'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:auto;padding:32px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.05);">
             <div style="text-align:center;margin-bottom:24px;">
-                <span style="font-size:40px;">🛍️</span>
+                <span style="font-size:40px;"></span>
             </div>
             <h2 style="color:#1A1A2E;text-align:center;font-size:24px;margin-bottom:8px;">New Order Placed!</h2>
             <p style="color:#666;text-align:center;font-size:15px;margin-top:0;">You have a new order waiting to be processed.</p>
@@ -36,7 +36,7 @@ class OrderPlacedAdminNotification
                     </tr>
                     <tr>
                         <td style="padding:12px 0;color:#888;font-size:13px;font-weight:600;text-transform:uppercase;">Amount Paid</td>
-                        <td style="padding:12px 0;color:#22C55E;font-size:16px;font-weight:800;text-align:right;">₦' . number_format($this->order->total, 2) . '</td>
+                        <td style="padding:12px 0;color:#22C55E;font-size:16px;font-weight:800;text-align:right;">' . number_format($this->order->total, 2) . '</td>
                     </tr>
                 </table>
             </div>
@@ -46,7 +46,7 @@ class OrderPlacedAdminNotification
             </p>
             
             <div style="text-align:center;margin-top:32px;">
-                <a href="' . config('app.frontend_url', 'https://mannabridal.netlify.app') . '/admin" style="display:inline-block;padding:14px 32px;background:#F47B20;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;letter-spacing:0.5px;">Go to Dashboard →</a>
+                <a href="' . config('app.frontend_url', 'https://mannabridal.netlify.app') . '/admin" style="display:inline-block;padding:14px 32px;background:#F47B20;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;letter-spacing:0.5px;">Go to Dashboard </a>
             </div>
             
             <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
@@ -56,7 +56,7 @@ class OrderPlacedAdminNotification
         return BrevoMailService::send(
             $notifiable->email,
             $notifiable->name,
-            '🚨 New Paid Order: ' . $this->order->reference,
+            ' New Paid Order: ' . $this->order->reference,
             $html
         );
     }

@@ -18,7 +18,7 @@ class LowStockNotification
     {
         $html = '
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:30px;background:#fff;border-radius:8px;">
-            <h2 style="color:#dc2626;">⚠️ Low Stock Alert</h2>
+            <h2 style="color:#dc2626;"> Low Stock Alert</h2>
             <p>Hello Admin,</p>
             <p>The following product is running low on stock:</p>
             <table style="border-collapse:collapse;width:100%;margin:16px 0;">
@@ -33,7 +33,7 @@ class LowStockNotification
         return BrevoMailService::send(
             $notifiable->email,
             $notifiable->name,
-            'Low Stock Alert — ' . $this->product->name,
+            'Low Stock Alert  ' . $this->product->name,
             $html
         );
     }

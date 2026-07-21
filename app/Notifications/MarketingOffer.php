@@ -19,7 +19,7 @@ class MarketingOffer
 
         $html = '
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:30px;background:#fff;border-radius:8px;">
-            <h2 style="color:#7c3aed;">💍 Manna Bridal — Exclusive Offer</h2>
+            <h2 style="color:#7c3aed;"> Manna Bridal  Exclusive Offer</h2>
             <p>Hello <strong>' . e($notifiable->name) . '</strong>,</p>
             <p>' . nl2br(e($this->offerData['message'])) . '</p>
             <a href="' . $shopUrl . '/shop"
@@ -28,7 +28,7 @@ class MarketingOffer
             </a>
             <p style="color:#666;font-size:13px;">Thank you for being a valued customer!</p>
             <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-            <p style="color:#999;font-size:12px;">Manna Bridal — You are receiving this because you are a registered customer.</p>
+            <p style="color:#999;font-size:12px;">Manna Bridal  You are receiving this because you are a registered customer.</p>
         </div>';
 
         return BrevoMailService::send(
