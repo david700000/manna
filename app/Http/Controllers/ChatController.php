@@ -118,6 +118,24 @@ class ChatController extends Controller
             'session_id' => 'nullable|string',
         ]);
 
+        $query = SupportMessage::where('is_admin_reply', true);
+        if (!empty($validated['user_id'])) {
+            $query->where('user_id', $validated['user_id']);
+        } elseif (!empty($validated['session_id'])) {
+            $query->where('session_id', $validated['session_id']);
+        }
+        $isAdminFirstReply = !$query->exists();
+
+        if ($isAdminFirstReply) {
+            $adminName = $request->user() ? $request->user()->name : 'Admin';
+            SupportMessage::create([
+                'user_id' => $validated['user_id'] ?? null,
+                'session_id' => $validated['session_id'] ?? null,
+                'is_admin_reply' => true,
+                'message' => "Hello, my name is {$adminName}. I will be the one in charge of your requests.",
+            ]);
+        }
+
         $message = SupportMessage::create([
             'user_id' => $validated['user_id'] ?? null,
             'session_id' => $validated['session_id'] ?? null,
