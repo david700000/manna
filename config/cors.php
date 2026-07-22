@@ -19,9 +19,13 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => array_filter([
+        env('FRONTEND_URL'),
+        env('APP_URL'),
+        'http://localhost:3000', // local dev
+    ]),
 
-    'allowed_origins_patterns' => ['.*'],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
