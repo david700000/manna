@@ -50,6 +50,8 @@ class AdminController extends Controller
             'status' => 'required|in:active,draft,archived',
             'category_id' => 'nullable|exists:categories,id',
             'existing_images' => 'nullable|array',
+            'sizes' => 'nullable|array',
+            'sizes.*' => 'string|max:20',
         ]);
 
         // Validate uploaded image files separately (field name is 'images' from multipart images[])
@@ -66,6 +68,7 @@ class AdminController extends Controller
 
         $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
         $validated['images'] = json_encode($imagePaths);
+        $validated['sizes'] = json_encode($request->input('sizes', []));
 
         $product = Product::create($validated);
 
@@ -86,7 +89,9 @@ class AdminController extends Controller
             'stock' => 'sometimes|required|integer',
             'status' => 'sometimes|required|in:active,draft,archived',
             'category_id' => 'nullable|exists:categories,id',
-            'existing_images' => 'nullable|array', // URLs to keep
+            'existing_images' => 'nullable|array',
+            'sizes' => 'nullable|array',
+            'sizes.*' => 'string|max:20',
         ]);
 
         // Validate uploaded image files separately
@@ -107,6 +112,9 @@ class AdminController extends Controller
         }
 
         $validated['images'] = json_encode($imagePaths);
+        if ($request->has('sizes')) {
+            $validated['sizes'] = json_encode($request->input('sizes', []));
+        }
         $product->update($validated);
 
         ActivityLog::log($request->user()->id, 'update_product', "Updated product: {$product->name} (ID: {$product->id})", $request->ip());
