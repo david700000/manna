@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Setting;
-use App\Models\Setting;
 use App\Models\ActivityLog;
 use App\Notifications\MarketingOffer;
 use Illuminate\Support\Facades\Cache;
