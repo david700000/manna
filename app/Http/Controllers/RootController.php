@@ -83,16 +83,17 @@ class RootController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = $request->user();
+        // Re-fetch user with password explicitly selected to bypass the Hidden attribute
+        $user = User::where('id', $request->user()->id)->select('id', 'name', 'email', 'role', 'password')->first();
 
-        if (!Hash::check($validated['password'], $user->password)) {
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json(['message' => 'Invalid password.'], 403);
         }
 
         $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        
+
         Cache::put("payment_auth_otp_{$user->id}", Hash::make($otp), now()->addMinutes(15));
-        
+
         BrevoMailService::sendAdminActionOtp($user->email, $user->name, $otp, 'view or modify Payment Settings');
 
         return response()->json(['message' => 'OTP sent successfully.']);
