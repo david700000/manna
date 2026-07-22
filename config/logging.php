@@ -95,6 +95,12 @@ return [
         ],
 
         'stderr' => [
+            'driver' => 'stack',
+            'channels' => ['single', 'stderr_stream'],
+            'ignore_exceptions' => false,
+        ],
+
+        'stderr_stream' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
