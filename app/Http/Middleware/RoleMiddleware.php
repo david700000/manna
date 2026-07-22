@@ -19,6 +19,10 @@ class RoleMiddleware
             return response()->json(['message' => 'Unauthorized action.'], 403);
         }
 
+        if ($request->user()->must_change_password) {
+            return response()->json(['message' => 'You must change your temporary password before accessing these endpoints.'], 403);
+        }
+
         return $next($request);
     }
 }
