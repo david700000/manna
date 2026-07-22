@@ -392,6 +392,55 @@ class RootController extends Controller
         return $pdf->download($filename);
     }
 
+    public function downloadFinanceReport()
+    {
+        $paidOrders = Order::where('payment_status', 'paid')->get(['total', 'created_at']);
+        $totalIncome = $paidOrders->sum('total');
+        
+        $dailySales = $paidOrders->groupBy(function($order) {
+            return $order->created_at->format('Y-m-d');
+        })->map(function($day) {
+            return $day->sum('total');
+        });
+
+        $monthlySales = $paidOrders->groupBy(function($order) {
+            return $order->created_at->format('Y-m');
+        })->map(function($month) {
+            return $month->sum('total');
+        });
+
+        $data = compact('totalIncome', 'dailySales', 'monthlySales');
+        $pdf = Pdf::loadView('reports.finance', $data);
+        return $pdf->download('finance-report-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    public function downloadActivityReport()
+    {
+        $logs = ActivityLog::with('user:id,name,email,role')
+            ->orderBy('created_at', 'desc')
+            ->take(200)
+            ->get();
+            
+        $data = compact('logs');
+        $pdf = Pdf::loadView('reports.activity', $data);
+        return $pdf->download('activity-report-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    public function downloadSystemLogsReport()
+    {
+        $logPath = storage_path('logs/laravel.log');
+        $logContent = file_exists($logPath) ? file_get_contents($logPath) : 'No log file found.';
+        
+        // Since logs can be massive, take last 500 lines
+        $lines = explode("\n", trim($logContent));
+        $last500 = array_slice($lines, -500);
+        $logs = implode("\n", $last500);
+
+        $data = compact('logs');
+        $pdf = Pdf::loadView('reports.system_logs', $data);
+        return $pdf->download('system-logs-' . now()->format('Y-m-d') . '.pdf');
+    }
+
     // ── UI Sections (CMS custom blocks) ──────────────────────────────────────
 
     public function getUiSections()

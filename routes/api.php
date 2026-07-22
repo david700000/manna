@@ -174,7 +174,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/purge-users', [RootController::class, 'purgeUsers']);
 
         Route::post('/broadcast', [RootController::class, 'broadcastToAll']);
-        Route::get('/report', [RootController::class, 'downloadReport']);
+        // PDF Reports
+        Route::get('/reports/finance', [RootController::class, 'downloadFinanceReport']);
+        Route::get('/reports/activity', [RootController::class, 'downloadActivityReport']);
+        Route::get('/reports/logs', [RootController::class, 'downloadSystemLogsReport']);
+        Route::get('/report', [RootController::class, 'downloadReport']); // original system report
 
         Route::get('/ui-sections', [RootController::class, 'getUiSections']);
         Route::post('/ui-sections', [RootController::class, 'updateUiSections']);
