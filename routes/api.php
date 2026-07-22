@@ -291,8 +291,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Root-only super-admin routes
     Route::middleware('role:root')->prefix('root')->group(function () {
-        Route::get('/users', [RootController::class, 'listUsers']);
-        Route::put('/users/{id}/role', [RootController::class, 'assignRole']);
+        Route::get('/users', [RootController::class, 'getUsers']);
+        Route::get('/activity-logs', [RootController::class, 'getActivityLogs']);
+        Route::get('/finance-dashboard', [RootController::class, 'getFinanceDashboard']);
+        
+        Route::post('/payment-auth/request', [RootController::class, 'requestPaymentAuth']);
+        Route::post('/payment-auth/verify', [RootController::class, 'verifyPaymentAuth']);
 
         Route::get('/payment-config', [RootController::class, 'getPaymentConfig']);
         Route::post('/payment-config', [RootController::class, 'updatePaymentConfig']);

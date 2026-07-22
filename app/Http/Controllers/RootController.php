@@ -11,7 +11,13 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Models\Setting;
+use App\Models\ActivityLog;
 use App\Notifications\MarketingOffer;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use App\Services\BrevoMailService;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class RootController extends Controller
 {
@@ -69,10 +75,61 @@ class RootController extends Controller
         ]);
     }
 
+    // ── Payment Config Authorization ──────────────────────────────────────────
+
+    public function requestPaymentAuth(Request $request)
+    {
+        $validated = $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($validated['password'], $user->password)) {
+            return response()->json(['message' => 'Invalid password.'], 403);
+        }
+
+        $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        
+        Cache::put("payment_auth_otp_{$user->id}", Hash::make($otp), now()->addMinutes(15));
+        
+        BrevoMailService::sendAdminActionOtp($user->email, $user->name, $otp, 'view or modify Payment Settings');
+
+        return response()->json(['message' => 'OTP sent successfully.']);
+    }
+
+    public function verifyPaymentAuth(Request $request)
+    {
+        $validated = $request->validate([
+            'otp' => 'required|string|size:6',
+        ]);
+
+        $user = $request->user();
+        $cachedOtpHash = Cache::get("payment_auth_otp_{$user->id}");
+
+        if (!$cachedOtpHash || !Hash::check($validated['otp'], $cachedOtpHash)) {
+            return response()->json(['message' => 'Invalid or expired OTP.'], 400);
+        }
+
+        // Generate a short-lived token to unlock payment settings
+        $unlockToken = Str::random(40);
+        Cache::put("payment_unlocked_{$user->id}", $unlockToken, now()->addMinutes(15));
+        Cache::forget("payment_auth_otp_{$user->id}");
+
+        return response()->json(['message' => 'Payment settings unlocked.', 'token' => $unlockToken]);
+    }
+
     // ── Payment Config ────────────────────────────────────────────────────────
 
-    public function getPaymentConfig()
+    public function getPaymentConfig(Request $request)
     {
+        $user = $request->user();
+        $token = $request->header('X-Payment-Auth-Token');
+
+        if (!$token || Cache::get("payment_unlocked_{$user->id}") !== $token) {
+            return response()->json(['message' => 'Unauthorized. Please authenticate.'], 403);
+        }
+
         $keys = ['paystack_public_key', 'paystack_secret_key'];
         $config = [];
         foreach ($keys as $key) {
@@ -84,6 +141,13 @@ class RootController extends Controller
 
     public function updatePaymentConfig(Request $request)
     {
+        $user = $request->user();
+        $token = $request->header('X-Payment-Auth-Token');
+
+        if (!$token || Cache::get("payment_unlocked_{$user->id}") !== $token) {
+            return response()->json(['message' => 'Unauthorized. Please authenticate.'], 403);
+        }
+
         $validated = $request->validate([
             'paystack_public_key'   => 'required|string',
             'paystack_secret_key'   => 'required|string',
@@ -152,6 +216,54 @@ class RootController extends Controller
         return response()->json(['log' => implode('', $last200)]);
     }
 
+    public function getActivityLogs(Request $request)
+    {
+        $logs = ActivityLog::with('user:id,name,email,role')
+            ->orderBy('created_at', 'desc')
+            ->take(100)
+            ->get();
+        return response()->json($logs);
+    }
+
+    // ── Finance Dashboard ─────────────────────────────────────────────────────
+
+    public function getFinanceDashboard()
+    {
+        $orders = Order::where('payment_status', 'paid')
+            ->orWhere('status', 'delivered') // depending on how revenue is tracked, assuming paid or delivered implies revenue
+            ->get(['id', 'total', 'created_at']);
+
+        // Only count paid orders
+        $paidOrders = Order::where('payment_status', 'paid')->get(['total', 'created_at']);
+
+        $totalIncome = $paidOrders->sum('total');
+
+        $dailySales = $paidOrders->groupBy(function($order) {
+            return $order->created_at->format('Y-m-d');
+        })->map(function($day) {
+            return $day->sum('total');
+        });
+
+        $monthlySales = $paidOrders->groupBy(function($order) {
+            return $order->created_at->format('Y-m');
+        })->map(function($month) {
+            return $month->sum('total');
+        });
+
+        $yearlySales = $paidOrders->groupBy(function($order) {
+            return $order->created_at->format('Y');
+        })->map(function($year) {
+            return $year->sum('total');
+        });
+
+        return response()->json([
+            'total_income' => $totalIncome,
+            'daily_sales' => $dailySales,
+            'monthly_sales' => $monthlySales,
+            'yearly_sales' => $yearlySales,
+        ]);
+    }
+
     public function purgeSystem(Request $request)
     {
         $validated = $request->validate([
@@ -216,55 +328,13 @@ class RootController extends Controller
         $users   = User::select('id', 'name', 'email', 'role', 'created_at')->get();
         $products = Product::select('id', 'name', 'price', 'stock', 'status')->get();
 
-        $csvRows = [];
+        $data = compact('orders', 'users', 'products');
 
-        // ── Orders section
-        $csvRows[] = ['=== ORDERS REPORT ==='];
-        $csvRows[] = ['Order ID', 'Reference', 'Customer', 'Email', 'Status', 'Payment Status', 'Total (₦)', 'Items', 'Date'];
-        foreach ($orders as $order) {
-            $itemNames = $order->items->map(fn($i) => $i->product?->name . ' x' . $i->quantity)->join('; ');
-            $csvRows[] = [
-                $order->id,
-                $order->reference,
-                $order->user?->name ?? 'N/A',
-                $order->user?->email ?? 'N/A',
-                $order->status,
-                $order->payment_status,
-                number_format($order->total, 2),
-                $itemNames,
-                $order->created_at,
-            ];
-        }
+        $pdf = Pdf::loadView('reports.system', $data);
 
-        $csvRows[] = [];
+        $filename = 'manna-bridal-report-' . now()->format('Y-m-d') . '.pdf';
 
-        // ── Users section
-        $csvRows[] = ['=== USERS REPORT ==='];
-        $csvRows[] = ['User ID', 'Name', 'Email', 'Role', 'Joined'];
-        foreach ($users as $user) {
-            $csvRows[] = [$user->id, $user->name, $user->email, $user->role, $user->created_at];
-        }
-
-        $csvRows[] = [];
-
-        // ── Products section
-        $csvRows[] = ['=== PRODUCTS REPORT ==='];
-        $csvRows[] = ['Product ID', 'Name', 'Price (₦)', 'Stock', 'Status'];
-        foreach ($products as $product) {
-            $csvRows[] = [$product->id, $product->name, number_format($product->price, 2), $product->stock, $product->status];
-        }
-
-        $csvContent = '';
-        foreach ($csvRows as $row) {
-            $csvContent .= implode(',', array_map(fn($v) => '"' . str_replace('"', '""', $v) . '"', $row)) . "\n";
-        }
-
-        $filename = 'manna-bridal-report-' . now()->format('Y-m-d') . '.csv';
-
-        return response($csvContent, 200, [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
+        return $pdf->download($filename);
     }
 
     // ── UI Sections (CMS custom blocks) ──────────────────────────────────────

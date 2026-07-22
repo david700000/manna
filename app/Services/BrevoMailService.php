@@ -144,4 +144,32 @@ class BrevoMailService
 
         return self::send($toEmail, $toName, $subject, $html);
     }
+
+    /**
+     * Send a generic OTP for sensitive admin actions.
+     */
+    public static function sendAdminActionOtp(string $toEmail, string $toName, string $otp, string $actionName = 'perform a sensitive action'): bool
+    {
+        $subject = 'Admin Action OTP  Manna Bridal';
+        $html = '
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; background: #f4f4f4; padding: 30px;">
+  <div style="max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <h2 style="color: #1A1A2E;">Admin Action Authorization</h2>
+    <p style="color: #555;">Hello <strong>' . htmlspecialchars($toName) . '</strong>,</p>
+    <p style="color: #555;">We received a request to ' . htmlspecialchars($actionName) . '. Use the OTP below to authorize this action. It expires in <strong>15 minutes</strong>.</p>
+    <div style="text-align:center; padding:18px 24px; margin:24px 0; font-size:32px; font-weight:bold; letter-spacing:8px; background:#FFF4EC; border:2px dashed #F47B20; border-radius:10px; color:#F47B20;">
+      ' . htmlspecialchars($otp) . '
+    </div>
+    <p style="color:#999; font-size:13px;">If you did not request this, please secure your account immediately.</p>
+    <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
+    <p style="color:#bbb; font-size:12px; text-align:center;"> ' . date('Y') . ' Manna Bridal. All rights reserved.</p>
+  </div>
+</body>
+</html>';
+
+        return self::send($toEmail, $toName, $subject, $html);
+    }
 }
+

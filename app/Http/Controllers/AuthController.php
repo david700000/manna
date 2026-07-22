@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Cache;
 use App\Services\BrevoMailService;
+use App\Models\ActivityLog;
 
 class AuthController extends Controller
 {
@@ -100,6 +101,8 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        ActivityLog::log($user->id, 'register', 'User registered successfully', $request->ip());
+
         return response()->json([
             'access_token' => $token,
             'token_type'   => 'Bearer',
@@ -130,6 +133,11 @@ class AuthController extends Controller
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             // Increment limiter only on failure
             RateLimiter::hit($key, 60);
+            if ($user) {
+                ActivityLog::log($user->id, 'login_failed', 'Failed login attempt (invalid password)', $request->ip());
+            } else {
+                ActivityLog::log(null, 'login_failed', 'Failed login attempt (user not found: ' . $validated['email'] . ')', $request->ip());
+            }
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
@@ -140,6 +148,8 @@ class AuthController extends Controller
         $user->tokens()->delete();
 
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        ActivityLog::log($user->id, 'login', 'User logged in successfully', $request->ip());
 
         return response()->json([
             'access_token' => $token,
@@ -179,8 +189,10 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $user = $request->user();
         // Revoke only the current token
-        $request->user()->currentAccessToken()->delete();
+        $user->currentAccessToken()->delete();
+        ActivityLog::log($user->id, 'logout', 'User logged out', $request->ip());
         return response()->json(['message' => 'Successfully logged out.']);
     }
 
@@ -285,6 +297,8 @@ class AuthController extends Controller
         $user->tokens()->delete();
 
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        ActivityLog::log($user->id, 'password_reset', 'User reset their password via OTP', $request->ip());
 
         return response()->json(['message' => 'Password has been successfully reset. Please log in with your new password.']);
     }

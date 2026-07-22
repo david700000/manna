@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\OrderStatusUpdate;
 use App\Notifications\MarketingOffer;
+use App\Models\ActivityLog;
 
 class AdminController extends Controller
 {
@@ -68,6 +69,8 @@ class AdminController extends Controller
 
         $product = Product::create($validated);
 
+        ActivityLog::log($request->user()->id, 'create_product', "Created product: {$product->name} (ID: {$product->id})", $request->ip());
+
         return response()->json($product, 201);
     }
 
@@ -106,13 +109,19 @@ class AdminController extends Controller
         $validated['images'] = json_encode($imagePaths);
         $product->update($validated);
 
+        ActivityLog::log($request->user()->id, 'update_product', "Updated product: {$product->name} (ID: {$product->id})", $request->ip());
+
         return response()->json($product);
     }
 
     public function destroyProduct($id)
     {
         $product = Product::findOrFail($id);
+        $name = $product->name;
         $product->delete();
+
+        ActivityLog::log(request()->user()->id, 'delete_product', "Deleted product: {$name} (ID: {$id})", request()->ip());
+
         return response()->json(['message' => 'Product deleted']);
     }
 
@@ -214,6 +223,8 @@ class AdminController extends Controller
                 \Illuminate\Support\Facades\Log::error('Order status chat update failed: ' . $e->getMessage());
             }
         }
+
+        ActivityLog::log($request->user()->id, 'update_order', "Updated order status to {$order->status} (ID: {$order->id})", $request->ip());
 
         return response()->json($order);
     }
@@ -463,7 +474,10 @@ class AdminController extends Controller
     {
         $count = Order::count();
         \App\Models\OrderItem::query()->delete();
-        Order::query()->delete();
+        Order::query()->truncate();
+
+        ActivityLog::log($request->user()->id, 'purge_orders', "Purged all orders", $request->ip());
+
         return response()->json(['message' => "All {$count} order(s) have been purged successfully."]);
     }
 
