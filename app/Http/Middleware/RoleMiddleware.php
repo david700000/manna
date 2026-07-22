@@ -19,7 +19,11 @@ class RoleMiddleware
             return response()->json(['message' => 'Unauthorized action.'], 403);
         }
 
-        if ($request->user()->must_change_password) {
+        // Allow password change and backup/restore endpoints even with temp password
+        $allowedPaths = ['auth/change-password', 'root/backup/export', 'root/backup/import'];
+        $isAllowed = collect($allowedPaths)->some(fn($path) => str_contains($request->path(), $path));
+
+        if ($request->user()->must_change_password && !$isAllowed) {
             return response()->json(['message' => 'You must change your temporary password before accessing these endpoints.'], 403);
         }
 

@@ -274,7 +274,7 @@ class RootController extends Controller
         }
 
         $request->validate([
-            'backup_file' => 'required|file|mimetypes:application/json,text/plain',
+            'backup_file' => 'required|file',
         ]);
 
         $file = $request->file('backup_file');
