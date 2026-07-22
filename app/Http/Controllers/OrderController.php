@@ -83,6 +83,12 @@ class OrderController extends Controller
                     'billing_address' => $validated['billing_address'],
                 ],
                 'notes' => null,
+                'status_history' => [
+                    [
+                        'status' => 'pending',
+                        'timestamp' => now()->toIso8601String()
+                    ]
+                ],
             ]);
 
             // Insert Items

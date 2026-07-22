@@ -108,7 +108,12 @@ class PaymentController extends Controller
 
             foreach ($transactions as $txn) {
                 if ($txn['status'] === 'success') {
-                    $order->update(['payment_status' => 'paid', 'status' => 'processing']);
+                    $history = is_array($order->status_history) ? $order->status_history : [];
+                    $history[] = [
+                        'status' => 'processing',
+                        'timestamp' => now()->toIso8601String()
+                    ];
+                    $order->update(['payment_status' => 'paid', 'status' => 'processing', 'status_history' => $history]);
 
                     $exists = Payment::where('transaction_reference', $txn['reference'])->exists();
                     if (!$exists) {
@@ -234,7 +239,12 @@ class PaymentController extends Controller
         }
         
         if ($order && $order->payment_status !== 'paid') {
-            $order->update(['payment_status' => 'paid', 'status' => 'processing']);
+            $history = is_array($order->status_history) ? $order->status_history : [];
+            $history[] = [
+                'status' => 'processing',
+                'timestamp' => now()->toIso8601String()
+            ];
+            $order->update(['payment_status' => 'paid', 'status' => 'processing', 'status_history' => $history]);
             
             // Auto-deduct stock
             foreach ($order->items as $item) {
@@ -304,7 +314,12 @@ class PaymentController extends Controller
             // order status enum only allows: pending, processing, shipped, delivered, cancelled
             $paymentNewStatus = 'failed'; // always 'failed' for non-successful payments
 
-            $order->update(['payment_status' => $paymentNewStatus, 'status' => 'cancelled']);
+            $history = is_array($order->status_history) ? $order->status_history : [];
+            $history[] = [
+                'status' => 'cancelled',
+                'timestamp' => now()->toIso8601String()
+            ];
+            $order->update(['payment_status' => $paymentNewStatus, 'status' => 'cancelled', 'status_history' => $history]);
             
             Payment::create([
                 'order_id'              => $order->id,
