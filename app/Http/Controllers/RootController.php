@@ -169,6 +169,18 @@ class RootController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
+        $validated = $request->validate([
+            'otp' => 'required|string|size:6',
+        ]);
+
+        $user = $request->user();
+        $cachedOtpHash = Cache::get("root_action_otp_{$user->id}");
+
+        if (!$cachedOtpHash || !Hash::check($validated['otp'], $cachedOtpHash)) {
+            return response()->json(['message' => 'Invalid or expired OTP.'], 403);
+        }
+        Cache::forget("root_action_otp_{$user->id}");
+
         // Turn off foreign key checks for SQLite
         \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = OFF;');
 
@@ -195,6 +207,18 @@ class RootController extends Controller
         if ($request->user()->role !== 'root') {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
+
+        $validated = $request->validate([
+            'otp' => 'required|string|size:6',
+        ]);
+
+        $user = $request->user();
+        $cachedOtpHash = Cache::get("root_action_otp_{$user->id}");
+
+        if (!$cachedOtpHash || !Hash::check($validated['otp'], $cachedOtpHash)) {
+            return response()->json(['message' => 'Invalid or expired OTP.'], 403);
+        }
+        Cache::forget("root_action_otp_{$user->id}");
 
         // Delete all users except root users
         User::where('role', '!=', 'root')->delete();
@@ -264,11 +288,42 @@ class RootController extends Controller
         ]);
     }
 
+    public function requestRootActionAuth(Request $request)
+    {
+        $validated = $request->validate([
+            'password' => 'required|string',
+            'action_name' => 'required|string',
+        ]);
+
+        $user = User::where('id', $request->user()->id)->select('id', 'name', 'email', 'role', 'password')->first();
+
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
+            return response()->json(['message' => 'Invalid password.'], 403);
+        }
+
+        $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        Cache::put("root_action_otp_{$user->id}", Hash::make($otp), now()->addMinutes(15));
+        
+        // Using the same mail service method as Payment Auth
+        BrevoMailService::sendAdminActionOtp($user->email, $user->name, $otp, $validated['action_name']);
+
+        return response()->json(['message' => 'OTP sent successfully.']);
+    }
+
     public function purgeSystem(Request $request)
     {
         $validated = $request->validate([
             'type' => 'required|in:cache,logs,sessions,all',
+            'otp' => 'required|string|size:6',
         ]);
+
+        $user = $request->user();
+        $cachedOtpHash = Cache::get("root_action_otp_{$user->id}");
+
+        if (!$cachedOtpHash || !Hash::check($validated['otp'], $cachedOtpHash)) {
+            return response()->json(['message' => 'Invalid or expired OTP.'], 403);
+        }
+        Cache::forget("root_action_otp_{$user->id}");
 
         $messages = [];
 

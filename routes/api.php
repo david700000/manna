@@ -6,12 +6,15 @@ use App\Http\Controllers\PublicController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\RootController;
 
-Route::post('/auth/send-registration-otp', [AuthController::class, 'sendRegistrationOtp']);
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/auth/send-registration-otp', [AuthController::class, 'sendRegistrationOtp']);
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+});
+
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::get('/products', [PublicController::class, 'products']);
 Route::get('/products/{slug}', [PublicController::class, 'product']);
@@ -23,148 +26,6 @@ Route::get('/settings', [PublicController::class, 'settings']);
 // Paystack Webhook Route
 Route::post('/webhooks/paystack', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 
-// Test all email services — fires one of each email to ADMIN_EMAIL
-Route::get('/test-emails', function () {
-    $adminEmail = env('ADMIN_EMAIL', 'mannabridalsupport@gmail.com');
-    $fakeUser   = (object)['name' => 'Test User', 'email' => $adminEmail, 'role' => 'manager'];
-    $results    = [];
-
-    // 1. Welcome email
-    try {
-        (new \App\Notifications\WelcomeUser())->send($fakeUser);
-        $results['welcome'] = 'sent';
-    } catch (\Throwable $e) { $results['welcome'] = 'FAILED: ' . $e->getMessage(); }
-
-    // 2. Admin invitation
-    try {
-        (new \App\Notifications\AdminInvitationNotification('Temp@12345'))->send($fakeUser);
-        $results['admin_invite'] = 'sent';
-    } catch (\Throwable $e) { $results['admin_invite'] = 'FAILED: ' . $e->getMessage(); }
-
-    // 3. OTP reset
-    try {
-        (new \App\Notifications\PasswordResetNotification('847291', true))->send($fakeUser);
-        $results['otp_reset'] = 'sent';
-    } catch (\Throwable $e) { $results['otp_reset'] = 'FAILED: ' . $e->getMessage(); }
-
-    // 4. Order status (use latest real order if exists, else a fake)
-    try {
-        $order = \App\Models\Order::latest()->first();
-        if ($order) {
-            (new \App\Notifications\OrderStatusUpdate($order))->send($fakeUser);
-            $results['order_status'] = 'sent (order: ' . $order->reference . ')';
-        } else {
-            $results['order_status'] = 'skipped (no orders exist yet)';
-        }
-    } catch (\Throwable $e) { $results['order_status'] = 'FAILED: ' . $e->getMessage(); }
-
-    // 5. Order placed admin notification
-    try {
-        $order = \App\Models\Order::latest()->first();
-        if ($order) {
-            (new \App\Notifications\OrderPlacedAdminNotification($order))->send($fakeUser);
-            $results['order_placed_admin'] = 'sent';
-        } else {
-            $results['order_placed_admin'] = 'skipped (no orders exist yet)';
-        }
-    } catch (\Throwable $e) { $results['order_placed_admin'] = 'FAILED: ' . $e->getMessage(); }
-
-    return response()->json([
-        'message' => 'Email test complete. Check ' . $adminEmail . ' inbox.',
-        'results' => $results,
-    ]);
-});
-
-// Diagnostic: test OTP email + cache independently
-Route::get('/test-otp-email', function () {
-    $adminEmail = env('ADMIN_EMAIL', 'mannabridalsupport@gmail.com');
-    $results = [];
-
-    // Test cache
-    try {
-        \Illuminate\Support\Facades\Cache::put('test_otp_diag', '999888', 60);
-        $val = \Illuminate\Support\Facades\Cache::get('test_otp_diag');
-        $results['cache'] = ($val === '999888') ? 'OK' : 'FAILED: got ' . $val;
-    } catch (\Throwable $e) {
-        $results['cache'] = 'FAILED: ' . $e->getMessage();
-    }
-
-    // Test OTP notification email
-    try {
-        \Illuminate\Support\Facades\Notification::route('mail', $adminEmail)
-            ->notify(new \App\Notifications\RegistrationOtpNotification('123456', 'Test User'));
-        $results['otp_email'] = 'sent to ' . $adminEmail;
-    } catch (\Throwable $e) {
-        $results['otp_email'] = 'FAILED: ' . $e->getMessage();
-    }
-
-    return response()->json(['results' => $results]);
-});
-
-
-
-
-// Route to seed categories and create root account ONLY IF it doesn't exist
-Route::get('/fix-root-password', function () {
-    try {
-        if (\Illuminate\Support\Facades\Schema::getConnection()->getDriverName() === 'pgsql') {
-            \Illuminate\Support\Facades\DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
-        }
-
-        // ONLY create if the user doesn't exist — NEVER overwrite an existing password
-        $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
-        if (!$user) {
-            \App\Models\User::create([
-                'name'                => 'Root Admin',
-                'email'               => 'david07israel@gmail.com',
-                'password'            => 'admin',
-                'role'                => 'root',
-                'must_change_password' => true,
-            ]);
-            $userStatus = 'Root user created with default password.';
-        } else {
-            // Just ensure role is correct, do NOT touch the password
-            if ($user->role !== 'root') {
-                $user->role = 'root';
-                $user->save();
-            }
-            $userStatus = 'Root user already exists — password was NOT changed.';
-        }
-
-        // Seed default categories if none exist
-        $categories = ['Gowns', 'Veils', 'Tiaras', 'Shoes', 'Jewelry'];
-        foreach ($categories as $index => $catName) {
-            \App\Models\Category::firstOrCreate(
-                ['name' => $catName],
-                [
-                    'slug'       => \Illuminate\Support\Str::slug($catName),
-                    'sort_order' => $index
-                ]
-            );
-        }
-
-        return $userStatus . ' Categories seeded. Done!';
-    } catch (\Exception $e) {
-        return 'Error: ' . $e->getMessage();
-    }
-});
-
-// Emergency: generate a fresh token WITHOUT deleting existing ones
-// Visit this URL to get a token you can paste in browser console:
-// localStorage.setItem('auth_token', 'PASTE_TOKEN_HERE')
-Route::get('/emergency-login', function () {
-    try {
-        $user = \App\Models\User::where('email', 'david07israel@gmail.com')->first();
-        if (!$user) return 'User not found';
-        $token = $user->createToken('emergency_token')->plainTextToken;
-        return response()->json([
-            'token' => $token,
-            'instructions' => 'Open browser console on your site and run: localStorage.setItem("auth_token", "' . $token . '"); localStorage.setItem("user", JSON.stringify(' . json_encode(['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'role' => $user->role]) . ')); location.reload();'
-        ]);
-    } catch (\Exception $e) {
-        return 'ERROR: ' . $e->getMessage();
-    }
-});
 
 // Temporary route to clean up test banners and slides
 Route::get('/cleanup-test-data', function () {
@@ -300,6 +161,7 @@ Route::middleware('auth:sanctum')->group(function () {
         
         Route::post('/payment-auth/request', [RootController::class, 'requestPaymentAuth']);
         Route::post('/payment-auth/verify', [RootController::class, 'verifyPaymentAuth']);
+        Route::post('/action-auth/request', [RootController::class, 'requestRootActionAuth']);
 
         Route::get('/payment-config', [RootController::class, 'getPaymentConfig']);
         Route::post('/payment-config', [RootController::class, 'updatePaymentConfig']);
