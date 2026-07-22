@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Notification;
 use App\Notifications\OrderStatusUpdate;
 use App\Notifications\OrderPlacedAdminNotification;
 use App\Notifications\LowStockNotification;
+use App\Models\ActivityLog;
 
 class OrderController extends Controller
 {
@@ -93,6 +94,8 @@ class OrderController extends Controller
 
             // Load relations for notifications and response
             $order->load('items.product', 'user');
+
+            ActivityLog::log($user->id, 'place_order', "Order placed: {$order->reference} — Total: ₦" . number_format($totalAmount, 2), $request->ip());
 
             return response()->json($order, 201);
 
