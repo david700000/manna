@@ -182,5 +182,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/ui-sections', [RootController::class, 'getUiSections']);
         Route::post('/ui-sections', [RootController::class, 'updateUiSections']);
+        
+        // Backup routes
+        Route::get('/backup/export', [RootController::class, 'exportDatabase']);
+        Route::post('/backup/import', [RootController::class, 'importDatabase']);
     });
 });

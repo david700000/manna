@@ -245,6 +245,106 @@ class RootController extends Controller
         return response()->json(['message' => 'All non-root users have been purged.']);
     }
 
+    // ── Backup & Restore ──────────────────────────────────────────────────────
+
+    public function exportDatabase(Request $request)
+    {
+        if ($request->user()->role !== 'root') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $data = [
+            'users' => \App\Models\User::all(),
+            'categories' => \App\Models\Category::all(),
+            'products' => \App\Models\Product::all(),
+            'orders' => \App\Models\Order::all(),
+            'order_items' => \App\Models\OrderItem::all(),
+            'banners' => \App\Models\Banner::all(),
+            'hero_slides' => \App\Models\HeroSlide::all(),
+            'settings' => \App\Models\Setting::all(),
+        ];
+
+        return response()->json($data)->header('Content-Disposition', 'attachment; filename="manna_backup_' . date('Y-m-d_H-i-s') . '.json"');
+    }
+
+    public function importDatabase(Request $request)
+    {
+        if ($request->user()->role !== 'root') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'backup_file' => 'required|file|mimetypes:application/json,text/plain',
+        ]);
+
+        $file = $request->file('backup_file');
+        $json = file_get_contents($file->getRealPath());
+        $data = json_decode($json, true);
+
+        if (!$data || !isset($data['products'])) {
+            return response()->json(['message' => 'Invalid backup file format.'], 400);
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
+            $driver = \Illuminate\Support\Facades\DB::getDriverName();
+
+            // Disable FK checks
+            if ($driver === 'sqlite') \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = OFF;');
+            elseif ($driver === 'mysql') \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+            // Clear tables
+            if ($driver === 'pgsql') {
+                \Illuminate\Support\Facades\DB::statement('TRUNCATE TABLE users, categories, products, orders, order_items, banners, hero_slides, settings RESTART IDENTITY CASCADE;');
+            } else {
+                \App\Models\OrderItem::truncate();
+                \App\Models\Order::truncate();
+                \App\Models\Product::truncate();
+                \App\Models\Category::truncate();
+                \App\Models\User::truncate();
+                \App\Models\Banner::truncate();
+                \App\Models\HeroSlide::truncate();
+                \App\Models\Setting::truncate();
+            }
+
+            // Restore data
+            if (isset($data['users'])) \App\Models\User::insert($data['users']);
+            if (isset($data['categories'])) \App\Models\Category::insert($data['categories']);
+            if (isset($data['products'])) {
+                // Ensure arrays are cast to JSON strings for raw inserts
+                $products = array_map(function($p) {
+                    if (isset($p['images']) && is_array($p['images'])) $p['images'] = json_encode($p['images']);
+                    if (isset($p['sizes']) && is_array($p['sizes'])) $p['sizes'] = json_encode($p['sizes']);
+                    return $p;
+                }, $data['products']);
+                \App\Models\Product::insert($products);
+            }
+            if (isset($data['orders'])) {
+                $orders = array_map(function($o) {
+                    if (isset($o['delivery_address']) && is_array($o['delivery_address'])) $o['delivery_address'] = json_encode($o['delivery_address']);
+                    if (isset($o['status_history']) && is_array($o['status_history'])) $o['status_history'] = json_encode($o['status_history']);
+                    return $o;
+                }, $data['orders']);
+                \App\Models\Order::insert($orders);
+            }
+            if (isset($data['order_items'])) \App\Models\OrderItem::insert($data['order_items']);
+            if (isset($data['banners'])) \App\Models\Banner::insert($data['banners']);
+            if (isset($data['hero_slides'])) \App\Models\HeroSlide::insert($data['hero_slides']);
+            if (isset($data['settings'])) \App\Models\Setting::insert($data['settings']);
+
+            // Enable FK checks
+            if ($driver === 'sqlite') \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = ON;');
+            elseif ($driver === 'mysql') \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json(['message' => 'Database restored successfully.']);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json(['message' => 'Failed to restore database.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
     // ── System Logs ───────────────────────────────────────────────────────────
 
     public function getLogs()
