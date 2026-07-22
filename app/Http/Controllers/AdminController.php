@@ -355,6 +355,33 @@ class AdminController extends Controller
         ]);
     }
 
+    /**
+     * Generate a Cloudinary signed upload signature for customer inquiry/chat image uploads.
+     * Any authenticated user (including customers) can use this.
+     */
+    public function customerCloudinarySignature(Request $request)
+    {
+        $cloudUrl = env('CLOUDINARY_URL', '');
+        preg_match('#cloudinary://([^:]+):([^@]+)@(.+)#', $cloudUrl, $matches);
+        $apiKey    = $matches[1] ?? '';
+        $apiSecret = $matches[2] ?? '';
+        $cloudName = $matches[3] ?? '';
+
+        $timestamp = time();
+        $folder    = 'inquiry-uploads';
+
+        $paramsToSign = "folder={$folder}&timestamp={$timestamp}";
+        $signature    = sha1($paramsToSign . $apiSecret);
+
+        return response()->json([
+            'api_key'    => $apiKey,
+            'cloud_name' => $cloudName,
+            'timestamp'  => $timestamp,
+            'signature'  => $signature,
+            'folder'     => $folder,
+        ]);
+    }
+
     public function storeHeroSlide(Request $request)
     {
         $request->validate([

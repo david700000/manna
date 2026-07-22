@@ -249,6 +249,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/{orderId}/initialize', [\App\Http\Controllers\PaymentController::class, 'initialize']);
     Route::get('/payments/{reference}/verify', [\App\Http\Controllers\PaymentController::class, 'verify']);
 
+    // Customer Cloudinary Upload Signature (for inquiry/chat image uploads)
+    Route::get('/customer/cloudinary-signature', [AdminController::class, 'customerCloudinarySignature']);
+
     // Admin routes (accessible by superadmin, manager, inventory AND root)
     Route::get('/admin/chat', [\App\Http\Controllers\ChatController::class, 'adminGetConversations']);
     Route::get('/admin/chat/thread', [\App\Http\Controllers\ChatController::class, 'adminGetThread']);
