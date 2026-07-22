@@ -7,6 +7,9 @@ composer install --no-dev --optimize-autoloader
 echo "Running migrations..."
 php artisan migrate --force
 
+echo "Seeding database (idempotent — safe to re-run)..."
+php artisan db:seed --force
+
 echo "Caching config..."
 php artisan config:cache
 

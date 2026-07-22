@@ -181,23 +181,42 @@ class RootController extends Controller
         }
         Cache::forget("root_action_otp_{$user->id}");
 
-        // Turn off foreign key checks for SQLite
-        \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = OFF;');
+        $driver = \Illuminate\Support\Facades\DB::getDriverName();
 
-        \App\Models\OrderItem::truncate();
-        \App\Models\Order::truncate();
-        // Assuming Payment, Category, CartItem models exist as requested
-        // \App\Models\Payment::truncate();
-        \App\Models\Product::truncate();
-        // \App\Models\Category::truncate();
-        if (\Illuminate\Support\Facades\Schema::hasTable('cart_items')) {
-            \Illuminate\Support\Facades\DB::table('cart_items')->truncate();
-        }
-        if (\Illuminate\Support\Facades\Schema::hasTable('wishlists')) {
-            \Illuminate\Support\Facades\DB::table('wishlists')->truncate();
+        // Disable foreign key checks (cross-database compatible)
+        if ($driver === 'sqlite') {
+            \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = OFF;');
+        } elseif ($driver === 'mysql') {
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         }
 
-        \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = ON;');
+        if ($driver === 'pgsql') {
+            // PostgreSQL: TRUNCATE with CASCADE handles FK dependencies
+            \Illuminate\Support\Facades\DB::statement('TRUNCATE TABLE order_items, orders, products RESTART IDENTITY CASCADE;');
+            if (\Illuminate\Support\Facades\Schema::hasTable('cart_items')) {
+                \Illuminate\Support\Facades\DB::statement('TRUNCATE TABLE cart_items RESTART IDENTITY CASCADE;');
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('wishlists')) {
+                \Illuminate\Support\Facades\DB::statement('TRUNCATE TABLE wishlists RESTART IDENTITY CASCADE;');
+            }
+        } else {
+            \App\Models\OrderItem::truncate();
+            \App\Models\Order::truncate();
+            \App\Models\Product::truncate();
+            if (\Illuminate\Support\Facades\Schema::hasTable('cart_items')) {
+                \Illuminate\Support\Facades\DB::table('cart_items')->truncate();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('wishlists')) {
+                \Illuminate\Support\Facades\DB::table('wishlists')->truncate();
+            }
+        }
+
+        // Re-enable FK checks
+        if ($driver === 'sqlite') {
+            \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = ON;');
+        } elseif ($driver === 'mysql') {
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
 
         return response()->json(['message' => 'Database fully purged (Orders, Products, Categories, Carts, Wishlists).']);
     }
