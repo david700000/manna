@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Clear any stale cached configuration so Render env vars take effect
+echo "Clearing config cache..."
+php artisan config:clear
+
 # Run database migrations
 echo "Running migrations..."
 php artisan migrate --force
