@@ -11,9 +11,19 @@ use App\Models\Setting;
 
 class PublicController extends Controller
 {
-    public function products()
+    public function products(Request $request)
     {
-        return response()->json(Product::with('category')->where('status', 'active')->get());
+        $query = Product::with('category')->where('status', 'active');
+
+        if ($request->has('search') && $request->search !== '') {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        return response()->json($query->get());
     }
 
     public function product($slug)

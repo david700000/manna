@@ -8,11 +8,13 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\OrderStatusUpdate;
 use App\Notifications\OrderPlacedAdminNotification;
 use App\Notifications\LowStockNotification;
 use App\Models\ActivityLog;
+use App\Http\Controllers\PaymentController;
 
 class OrderController extends Controller
 {
@@ -34,7 +36,20 @@ class OrderController extends Controller
             $totalAmount = 0;
             $orderItems = [];
 
-            // Calculate total and prepare items
+            // ── Stock validation pass (before any writes) ──────────────────
+            foreach ($validated['items'] as $item) {
+                $product = Product::lockForUpdate()->findOrFail($item['product_id']);
+
+                if ($product->stock < $item['quantity']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "Insufficient stock for \"{$product->name}\". Only {$product->stock} unit(s) available.",
+                        'product_id' => $product->id,
+                    ], 422);
+                }
+            }
+
+            // ── Calculate total and prepare items ──────────────────────────
             foreach ($validated['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
 
@@ -91,9 +106,13 @@ class OrderController extends Controller
                 ],
             ]);
 
-            // Insert Items
+            // Insert Items and decrement stock
             foreach ($orderItems as $item) {
                 $order->items()->create($item);
+
+                // Decrement stock atomically
+                Product::where('id', $item['product_id'])
+                    ->decrement('stock', $item['quantity']);
             }
 
             DB::commit();
@@ -166,32 +185,66 @@ class OrderController extends Controller
 
     public function cancelOrder(Request $request, $id)
     {
-        $order = $request->user()->orders()->findOrFail($id);
+        $order = $request->user()->orders()->with('items.product')->findOrFail($id);
 
-        if (in_array($order->status, ['shipped', 'in transit', 'delivered', 'cancelled'])) {
-            return response()->json(['message' => "Order cannot be cancelled because it is already {$order->status}."], 400);
+        $nonCancellableStatuses = ['shipped', 'in transit', 'delivered', 'cancelled'];
+        if (in_array($order->status, $nonCancellableStatuses)) {
+            return response()->json([
+                'message' => "Order cannot be cancelled because it is already {$order->status}."
+            ], 400);
         }
 
         $history = $order->status_history ?? [];
         $history[] = [
-            'status' => 'cancelled',
+            'status'    => 'cancelled',
             'timestamp' => now()->toIso8601String(),
         ];
 
         $order->update([
-            'status' => 'cancelled',
-            'status_history' => $history
+            'status'         => 'cancelled',
+            'status_history' => $history,
         ]);
 
+        // ── Restore stock for every item in the order ─────────────────────
+        foreach ($order->items as $item) {
+            Product::where('id', $item->product_id)
+                ->increment('stock', $item->quantity);
+        }
+
+        // ── Trigger refund if the order was already paid ───────────────────
+        $refundMessage = null;
+        if ($order->payment_status === 'paid') {
+            try {
+                $paymentController = new PaymentController();
+                $result = $paymentController->refund($order);
+
+                if ($result['success']) {
+                    $order->update(['payment_status' => 'refund_pending']);
+                    $refundMessage = 'A refund of ₦' . number_format($order->total, 2) . ' has been initiated and will be processed within 5–10 business days.';
+                } else {
+                    Log::warning('Refund initiation failed for order ' . $order->reference . ': ' . $result['message']);
+                    $refundMessage = 'Order cancelled. We could not automatically initiate a refund — our team will process it manually within 24 hours.';
+                }
+            } catch (\Throwable $e) {
+                Log::error('Refund exception for order ' . $order->reference . ': ' . $e->getMessage());
+                $refundMessage = 'Order cancelled. Refund will be processed manually by our team.';
+            }
+        }
+
+        // ── Send cancellation notification email ───────────────────────────
         try {
             $order->load('user');
             if ($order->user) {
                 (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Order cancel email failed: ' . $e->getMessage());
+            Log::warning('Order cancel email failed: ' . $e->getMessage());
         }
 
-        return response()->json(['message' => 'Order cancelled successfully', 'order' => $order]);
+        return response()->json([
+            'message'        => 'Order cancelled successfully.',
+            'refund_message' => $refundMessage,
+            'order'          => $order->fresh(),
+        ]);
     }
 }

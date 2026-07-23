@@ -192,6 +192,8 @@ class PaymentController extends Controller
             $this->processSuccessfulPayment($event['data']);
         } else if ($event['event'] === 'charge.failed') {
             $this->processFailedPayment($event['data'], 'failed');
+        } else if ($event['event'] === 'refund.processed') {
+            $this->processRefundWebhook($event['data']);
         }
 
         return response()->json(['message' => 'Webhook received']);
@@ -294,7 +296,7 @@ class PaymentController extends Controller
         if (is_array($metadata) && isset($metadata['order_reference'])) {
             $orderRef = $metadata['order_reference'];
         }
-        
+
         if (!$orderRef && isset($data['reference'])) {
             $parts = explode('-', $data['reference']);
             if (count($parts) >= 2) {
@@ -310,17 +312,17 @@ class PaymentController extends Controller
         }
 
         if ($order && $order->payment_status !== 'paid') {
-            // payment_status enum only allows: unpaid, paid, failed
-            // order status enum only allows: pending, processing, shipped, delivered, cancelled
-            $paymentNewStatus = 'failed'; // always 'failed' for non-successful payments
-
             $history = is_array($order->status_history) ? $order->status_history : [];
             $history[] = [
-                'status' => 'cancelled',
-                'timestamp' => now()->toIso8601String()
+                'status'    => 'cancelled',
+                'timestamp' => now()->toIso8601String(),
             ];
-            $order->update(['payment_status' => $paymentNewStatus, 'status' => 'cancelled', 'status_history' => $history]);
-            
+            $order->update([
+                'payment_status' => 'failed',
+                'status'         => 'cancelled',
+                'status_history' => $history,
+            ]);
+
             Payment::create([
                 'order_id'              => $order->id,
                 'monnify_reference'     => null,
@@ -328,18 +330,124 @@ class PaymentController extends Controller
                 'amount'                => ($data['amount'] ?? 0) / 100,
                 'status'                => 'failed',
                 'payment_method'        => $data['channel'] ?? 'card',
-                'raw_response'          => json_encode($data)
+                'raw_response'          => json_encode($data),
             ]);
 
-            // Send payment failed notification
             try {
                 $order->load('user');
                 if ($order->user) {
                     (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
                 }
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Payment failed email failed: ' . $e->getMessage());
+                Log::warning('Payment failed email failed: ' . $e->getMessage());
             }
         }
+    }
+
+    /**
+     * Initiate a Paystack refund for a paid order.
+     * Called internally from OrderController::cancelOrder().
+     *
+     * @param  \App\Models\Order  $order
+     * @return array{success: bool, message: string}
+     */
+    public function refund(Order $order): array
+    {
+        $secretKey = $this->getSecretKey();
+
+        if (!$secretKey) {
+            Log::error('Refund failed: Paystack secret key not configured.', ['order' => $order->reference]);
+            return ['success' => false, 'message' => 'Payment gateway not configured.'];
+        }
+
+        // Find the successful payment record
+        $payment = Payment::where('order_id', $order->id)
+            ->where('status', 'paid')
+            ->latest()
+            ->first();
+
+        if (!$payment || !$payment->transaction_reference) {
+            Log::error('Refund failed: No paid payment record found.', ['order' => $order->reference]);
+            return ['success' => false, 'message' => 'No payment record found for this order.'];
+        }
+
+        // Call Paystack refund API
+        $refundResponse = Http::withToken($secretKey)->post($this->baseUrl . '/refund', [
+            'transaction' => $payment->transaction_reference,
+            'amount'      => (int) round($order->total * 100), // kobo
+        ]);
+
+        if (!$refundResponse->successful() || !($refundResponse->json()['status'] ?? false)) {
+            $errorMsg = $refundResponse->json()['message'] ?? 'Refund request failed.';
+            Log::error('Paystack Refund Failed', [
+                'order'    => $order->reference,
+                'response' => $refundResponse->json(),
+            ]);
+            $payment->update([
+                'refund_status' => 'failed',
+            ]);
+            return ['success' => false, 'message' => $errorMsg];
+        }
+
+        $refundData = $refundResponse->json()['data'];
+
+        // Update payment record with refund info
+        $payment->update([
+            'refund_reference' => $refundData['id'] ?? null,
+            'refund_status'    => 'pending',
+            'refund_amount'    => $order->total,
+        ]);
+
+        Log::info('Paystack Refund Initiated', [
+            'order'            => $order->reference,
+            'refund_reference' => $refundData['id'] ?? null,
+        ]);
+
+        return ['success' => true, 'message' => 'Refund initiated successfully.'];
+    }
+
+    /**
+     * Handle Paystack refund.processed webhook event.
+     * Updates the payment and order to reflect the completed refund.
+     */
+    private function processRefundWebhook(array $data): void
+    {
+        $refundId = $data['id'] ?? null;
+        if (!$refundId) return;
+
+        $payment = Payment::where('refund_reference', $refundId)->first();
+        if (!$payment) {
+            Log::warning('Refund webhook: no payment found for refund id ' . $refundId);
+            return;
+        }
+
+        $status = $data['status'] ?? 'failed'; // 'processed' or 'failed'
+        $refundStatus = ($status === 'processed') ? 'success' : 'failed';
+        $orderPaymentStatus = ($status === 'processed') ? 'refunded' : 'refund_pending';
+
+        $payment->update([
+            'refund_status' => $refundStatus,
+            'refunded_at'   => now(),
+        ]);
+
+        $order = Order::find($payment->order_id);
+        if ($order) {
+            $order->update(['payment_status' => $orderPaymentStatus]);
+
+            // Notify customer the refund is complete
+            try {
+                $order->load('user');
+                if ($order->user && $status === 'processed') {
+                    (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Refund confirmation email failed: ' . $e->getMessage());
+            }
+        }
+
+        Log::info('Paystack Refund Webhook Processed', [
+            'refund_id' => $refundId,
+            'status'    => $refundStatus,
+        ]);
     }
 }
