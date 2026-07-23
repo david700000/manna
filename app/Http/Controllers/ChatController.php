@@ -73,19 +73,27 @@ class ChatController extends Controller
 
     public function adminGetConversations()
     {
-        $conversations = \App\Models\SupportMessage::with('user')
+        $allMessages = \App\Models\SupportMessage::with('user')
             ->orderBy('created_at', 'desc')
-            ->get()
+            ->get();
+            
+        $conversations = $allMessages
             ->unique(function ($item) {
                 return ($item->user_id ?? 0) . '-' . ($item->session_id ?? '');
             })
             ->values();
             
-        $result = $conversations->map(function($msg) {
+        $result = $conversations->map(function($msg) use ($allMessages) {
             $msg->u_id = $msg->user_id ?? 0;
             $msg->s_id = $msg->session_id ?? '';
             $msg->user_name = $msg->user ? $msg->user->name : null;
             $msg->user_email = $msg->user ? $msg->user->email : null;
+            
+            $msg->unread_count = $allMessages->where('user_id', $msg->user_id)
+                                             ->where('session_id', $msg->session_id)
+                                             ->where('is_admin_reply', false)
+                                             ->where('is_read', false)
+                                             ->count();
             return $msg;
         });
 
