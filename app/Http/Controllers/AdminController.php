@@ -551,4 +551,19 @@ class AdminController extends Controller
 
         return response()->json($customers);
     }
+
+    public function getNotifications(Request $request)
+    {
+        $notifications = \App\Models\AdminNotification::orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+            
+        return response()->json($notifications);
+    }
+
+    public function markNotificationsRead(Request $request)
+    {
+        \App\Models\AdminNotification::where('is_read', false)->update(['is_read' => true]);
+        return response()->json(['message' => 'Notifications marked as read.']);
+    }
 }

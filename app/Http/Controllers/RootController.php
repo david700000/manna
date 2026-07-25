@@ -372,13 +372,9 @@ class RootController extends Controller
 
     public function getFinanceDashboard()
     {
-        $orders = Order::where('payment_status', 'paid')
-            ->orWhere('status', 'delivered') // depending on how revenue is tracked, assuming paid or delivered implies revenue
-            ->get(['id', 'total', 'created_at']);
-
-        // Only count paid orders
+        // Only count paid orders that are NOT refunded
         $paidOrders = Order::where('payment_status', 'paid')->get(['total', 'created_at']);
-
+        
         $totalIncome = $paidOrders->sum('total');
 
         $dailySales = $paidOrders->groupBy(function($order) {
@@ -399,11 +395,38 @@ class RootController extends Controller
             return $year->sum('total');
         });
 
+        // Calculate refunds
+        $refundedOrders = Order::whereIn('payment_status', ['refunded', 'refund_pending'])->get(['total', 'created_at']);
+        
+        $totalRefunds = $refundedOrders->sum('total');
+
+        $dailyRefunds = $refundedOrders->groupBy(function($order) {
+            return $order->created_at->format('Y-m-d');
+        })->map(function($day) {
+            return $day->sum('total');
+        });
+
+        $monthlyRefunds = $refundedOrders->groupBy(function($order) {
+            return $order->created_at->format('Y-m');
+        })->map(function($month) {
+            return $month->sum('total');
+        });
+
+        $yearlyRefunds = $refundedOrders->groupBy(function($order) {
+            return $order->created_at->format('Y');
+        })->map(function($year) {
+            return $year->sum('total');
+        });
+
         return response()->json([
             'total_income' => $totalIncome,
             'daily_sales' => $dailySales,
             'monthly_sales' => $monthlySales,
             'yearly_sales' => $yearlySales,
+            'total_refunds' => $totalRefunds,
+            'daily_refunds' => $dailyRefunds,
+            'monthly_refunds' => $monthlyRefunds,
+            'yearly_refunds' => $yearlyRefunds,
         ]);
     }
 

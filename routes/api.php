@@ -153,6 +153,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/settings/theme', [AdminController::class, 'updateTheme']);
         Route::put('/settings/shipping', [AdminController::class, 'updateShippingSettings']);
         Route::post('/marketing/broadcast', [AdminController::class, 'broadcastOffer']);
+
+        Route::get('/notifications', [AdminController::class, 'getNotifications']);
+        Route::post('/notifications/mark-read', [AdminController::class, 'markNotificationsRead']);
     });
 
     // Root-only super-admin routes

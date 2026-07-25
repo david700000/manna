@@ -129,6 +129,15 @@ class OrderController extends Controller
 
             ActivityLog::log($user->id, 'place_order', "Order placed: {$order->reference} — Total: ₦" . number_format($totalAmount, 2), $request->ip());
 
+            // ── Fire admin notification ────────────────────────────────────
+            try {
+                \App\Models\AdminNotification::create([
+                    'type'         => 'order',
+                    'message'      => "New order #{$order->id} placed by {$user->name} — ₦" . number_format($grandTotal, 2),
+                    'reference_id' => (string) $order->id,
+                ]);
+            } catch (\Throwable $e) {}
+
             return response()->json($order, 201);
 
         } catch (\Exception $e) {
@@ -230,6 +239,14 @@ class OrderController extends Controller
                 if ($result['success']) {
                     $order->update(['payment_status' => 'refund_pending']);
                     $refundMessage = 'A refund of ₦' . number_format($order->total, 2) . ' has been initiated and will be processed within 5–10 business days.';
+                    // Fire admin refund notification
+                    try {
+                        \App\Models\AdminNotification::create([
+                            'type'         => 'refund',
+                            'message'      => "Refund of ₦" . number_format($order->total, 2) . " initiated for order #{$order->id} ({$order->customer_name}).",
+                            'reference_id' => (string) $order->id,
+                        ]);
+                    } catch (\Throwable $e) {}
                 } else {
                     Log::warning('Refund initiation failed for order ' . $order->reference . ': ' . $result['message']);
                     $refundMessage = 'Order cancelled. We could not automatically initiate a refund — our team will process it manually within 24 hours.';

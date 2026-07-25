@@ -68,6 +68,15 @@ class ChatController extends Controller
             \Illuminate\Support\Facades\Log::error('Support msg notification error: ' . $e->getMessage());
         }
 
+        // ── Fire admin notification ────────────────────────────────────
+        try {
+            \App\Models\AdminNotification::create([
+                'type'         => 'support',
+                'message'      => "New support message from {$user->name}: \"" . \Illuminate\Support\Str::limit($validated['message'], 60) . "\"",
+                'reference_id' => (string) $user->id,
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json($message, 201);
     }
 
