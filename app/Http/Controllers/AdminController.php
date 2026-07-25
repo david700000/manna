@@ -52,6 +52,7 @@ class AdminController extends Controller
             'existing_images' => 'nullable|array',
             'sizes' => 'nullable|array',
             'sizes.*' => 'string|max:20',
+            'is_free_shipping' => 'nullable|boolean',
         ]);
 
         // Validate uploaded image files separately (field name is 'images' from multipart images[])
@@ -69,6 +70,9 @@ class AdminController extends Controller
         $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
         $validated['images'] = json_encode($imagePaths);
         $validated['sizes'] = json_encode($request->input('sizes', []));
+        if ($request->has('is_free_shipping')) {
+            $validated['is_free_shipping'] = in_array($request->input('is_free_shipping'), ['1', 1, 'true', true], true);
+        }
 
         $product = Product::create($validated);
 
@@ -92,6 +96,7 @@ class AdminController extends Controller
             'existing_images' => 'nullable|array',
             'sizes' => 'nullable|array',
             'sizes.*' => 'string|max:20',
+            'is_free_shipping' => 'nullable|boolean',
         ]);
 
         // Validate uploaded image files separately
@@ -114,6 +119,9 @@ class AdminController extends Controller
         $validated['images'] = json_encode($imagePaths);
         if ($request->has('sizes')) {
             $validated['sizes'] = json_encode($request->input('sizes', []));
+        }
+        if ($request->has('is_free_shipping')) {
+            $validated['is_free_shipping'] = in_array($request->input('is_free_shipping'), ['1', 1, 'true', true], true);
         }
         $product->update($validated);
 
@@ -443,6 +451,25 @@ class AdminController extends Controller
     {
         \App\Models\HeroSlide::destroy($id);
         return response()->json(['message' => 'deleted']);
+    }
+
+    // --- Shipping Settings ---
+    public function updateShippingSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'shipping_enabled' => 'required|boolean',
+            'shipping_fee_lagos_kwara' => 'required|numeric',
+            'shipping_fee_other' => 'required|numeric',
+        ]);
+
+        foreach (['shipping_enabled', 'shipping_fee_lagos_kwara', 'shipping_fee_other'] as $key) {
+            $setting = \App\Models\Setting::firstOrNew(['key' => $key]);
+            // Convert boolean to string "true"/"false" if needed, or store as is
+            $setting->value = is_bool($validated[$key]) ? ($validated[$key] ? 'true' : 'false') : (string)$validated[$key];
+            $setting->save();
+        }
+
+        return response()->json(['message' => 'Shipping settings updated']);
     }
 
     // --- Theme ---

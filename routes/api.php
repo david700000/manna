@@ -151,6 +151,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/cloudinary-signature', [AdminController::class, 'cloudinarySignature']);
 
         Route::put('/settings/theme', [AdminController::class, 'updateTheme']);
+        Route::put('/settings/shipping', [AdminController::class, 'updateShippingSettings']);
         Route::post('/marketing/broadcast', [AdminController::class, 'broadcastOffer']);
     });
 
