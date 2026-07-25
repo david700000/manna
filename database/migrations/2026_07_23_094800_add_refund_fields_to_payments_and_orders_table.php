@@ -9,9 +9,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Alter orders.payment_status enum to include refund_pending and refunded
-        // MySQL doesn't support ALTER COLUMN for ENUMs easily, so we use a raw query
-        DB::statement("ALTER TABLE orders MODIFY COLUMN payment_status ENUM('unpaid','paid','failed','refund_pending','refunded') NOT NULL DEFAULT 'unpaid'");
+        // PostgreSQL check constraint for enum (Laravel implementation)
+        DB::statement("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_status_check");
+        DB::statement("ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check CHECK (payment_status::text = ANY (ARRAY['unpaid'::character varying, 'paid'::character varying, 'failed'::character varying, 'refund_pending'::character varying, 'refunded'::character varying]::text[]))");
 
         // 2. Add refund tracking columns to payments table
         Schema::table('payments', function (Blueprint $table) {
@@ -28,6 +28,7 @@ return new class extends Migration
             $table->dropColumn(['refund_reference', 'refund_status', 'refund_amount', 'refunded_at']);
         });
 
-        DB::statement("ALTER TABLE orders MODIFY COLUMN payment_status ENUM('unpaid','paid','failed') NOT NULL DEFAULT 'unpaid'");
+        DB::statement("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_status_check");
+        DB::statement("ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check CHECK (payment_status::text = ANY (ARRAY['unpaid'::character varying, 'paid'::character varying, 'failed'::character varying]::text[]))");
     }
 };

@@ -28,6 +28,7 @@ class OrderController extends Controller
             'shipping_address' => 'required|string',
             'billing_address' => 'required|string',
             'customer_phone' => 'nullable|string',
+            'state' => 'required|string',
         ]);
 
         try {
@@ -82,6 +83,11 @@ class OrderController extends Controller
                 $user->save();
             }
 
+            $state = strtolower(trim($validated['state']));
+            $shippingFee = ($state === 'lagos' || $state === 'kwara') ? 2000 : 4000;
+            
+            $grandTotal = $totalAmount + $shippingFee;
+
             // Create Order using migration schema columns
             $order = Order::create([
                 'reference' => 'ORD-' . strtoupper(Str::random(10)),
@@ -90,7 +96,8 @@ class OrderController extends Controller
                 'customer_email' => $user->email,
                 'customer_phone' => $validated['customer_phone'] ?? $user->phone ?? '',
                 'subtotal' => $totalAmount,
-                'total' => $totalAmount,
+                'shipping_fee' => $shippingFee,
+                'total' => $grandTotal,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'delivery_address' => [
@@ -163,7 +170,6 @@ class OrderController extends Controller
 
         // Send notification to admin/system about customer confirmation
         try {
-            $adminUser = (object)['email' => env('ADMIN_EMAIL', 'mannabridalsupport@gmail.com'), 'name' => 'Admin'];
             $msg = 'Order ' . $order->reference . ' has been confirmed as RECEIVED by the customer.';
             
             // Insert chat message
@@ -174,10 +180,13 @@ class OrderController extends Controller
                 'message' => 'SYSTEM: Customer confirmed order delivery.'
             ]);
 
-            \Illuminate\Support\Facades\Notification::send($adminUser, new \App\Notifications\ChatNotification([
-                'name' => 'System',
-                'message' => $msg
-            ], 'admin'));
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            foreach ($admins as $adminUser) {
+                (new \App\Notifications\ChatNotification([
+                    'name' => 'System',
+                    'message' => $msg
+                ], 'admin'))->send($adminUser);
+            }
         } catch (\Throwable $e) {}
 
         return response()->json(['message' => 'Delivery confirmed successfully', 'order' => $order]);
@@ -246,5 +255,37 @@ class OrderController extends Controller
             'refund_message' => $refundMessage,
             'order'          => $order->fresh(),
         ]);
+    }
+
+    public function rateProduct(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'ratings' => 'required|array',
+            'ratings.*.product_id' => 'required|exists:products,id',
+            'ratings.*.rating' => 'required|integer|min:1|max:5',
+            'ratings.*.review' => 'nullable|string'
+        ]);
+
+        $order = $request->user()->orders()->findOrFail($id);
+
+        if ($order->status !== 'delivered') {
+            return response()->json(['message' => 'You can only rate delivered orders.'], 400);
+        }
+
+        foreach ($validated['ratings'] as $item) {
+            \App\Models\ProductRating::updateOrCreate(
+                [
+                    'user_id' => $request->user()->id,
+                    'order_id' => $order->id,
+                    'product_id' => $item['product_id'],
+                ],
+                [
+                    'rating' => $item['rating'],
+                    'review' => $item['review'] ?? null,
+                ]
+            );
+        }
+
+        return response()->json(['message' => 'Ratings submitted successfully.']);
     }
 }

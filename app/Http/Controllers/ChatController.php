@@ -55,13 +55,15 @@ class ChatController extends Controller
 
         // Send notification to admin
         try {
-            $adminUser = (object)['email' => env('ADMIN_EMAIL', 'mannabridalsupport@gmail.com'), 'name' => 'Admin'];
+            $admins = \App\Models\User::where('role', 'admin')->get();
             $messageData = [
                 'name' => $user ? $user->name : 'Guest Customer',
                 'email' => $user ? $user->email : 'guest@mannabridal.com',
                 'message' => $validated['message'],
             ];
-            (new \App\Notifications\ChatNotification($messageData, 'admin'))->send($adminUser);
+            foreach ($admins as $adminUser) {
+                (new \App\Notifications\ChatNotification($messageData, 'admin'))->send($adminUser);
+            }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Support msg notification error: ' . $e->getMessage());
         }

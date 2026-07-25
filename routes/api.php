@@ -101,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders/{id}', [\App\Http\Controllers\OrderController::class, 'show']);
     Route::post('/orders/{id}/confirm-delivery', [\App\Http\Controllers\OrderController::class, 'confirmDelivery']);
     Route::post('/orders/{id}/cancel', [\App\Http\Controllers\OrderController::class, 'cancelOrder']);
+    Route::post('/orders/{id}/rate', [\App\Http\Controllers\OrderController::class, 'rateProduct']);
 
     // Wishlist Routes
     Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index']);

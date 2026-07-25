@@ -274,8 +274,10 @@ class PaymentController extends Controller
                     (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
                 }
                 
-                $adminUser = (object)['email' => 'mannabridalsupport@gmail.com', 'name' => 'Admin'];
-                (new \App\Notifications\OrderPlacedAdminNotification($order))->send($adminUser);
+                $admins = \App\Models\User::where('role', 'admin')->get();
+                foreach ($admins as $adminUser) {
+                    (new \App\Notifications\OrderPlacedAdminNotification($order))->send($adminUser);
+                }
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Payment confirmation email failed: ' . $e->getMessage());
             }

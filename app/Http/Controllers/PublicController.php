@@ -28,7 +28,7 @@ class PublicController extends Controller
 
     public function product($slug)
     {
-        $product = Product::with('category')->where('slug', $slug)->where('status', 'active')->firstOrFail();
+        $product = Product::with(['category', 'ratings.user'])->where('slug', $slug)->where('status', 'active')->firstOrFail();
         return response()->json($product);
     }
 
@@ -67,13 +67,11 @@ class PublicController extends Controller
             'message' => $validated['message'],
         ];
 
-        $adminUser = (object)[
-            'email' => 'mannabridalsupport@gmail.com',
-            'name' => 'Manna Bridal Support'
-        ];
-
         try {
-            (new \App\Notifications\ContactMessageNotification($messageData))->send($adminUser);
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            foreach ($admins as $adminUser) {
+                (new \App\Notifications\ContactMessageNotification($messageData))->send($adminUser);
+            }
             return response()->json(['message' => 'Message sent successfully.']);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to send message.', 'error' => $e->getMessage()], 500);
