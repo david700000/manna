@@ -52,7 +52,7 @@ class AdminController extends Controller
             'existing_images' => 'nullable|array',
             'sizes' => 'nullable|array',
             'sizes.*' => 'string|max:20',
-            'is_free_shipping' => 'nullable|boolean',
+            'is_free_shipping' => 'nullable|string',
         ]);
 
         // Validate uploaded image files separately (field name is 'images' from multipart images[])
@@ -96,7 +96,7 @@ class AdminController extends Controller
             'existing_images' => 'nullable|array',
             'sizes' => 'nullable|array',
             'sizes.*' => 'string|max:20',
-            'is_free_shipping' => 'nullable|boolean',
+            'is_free_shipping' => 'nullable|string',
         ]);
 
         // Validate uploaded image files separately
