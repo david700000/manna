@@ -365,12 +365,7 @@ class PaymentController extends Controller
             ];
             $order->update(['payment_status' => 'paid', 'status' => 'processing', 'status_history' => $history]);
             
-            // Auto-deduct stock
-            foreach ($order->items as $item) {
-                if ($item->product) {
-                    $item->product->decrement('stock', $item->quantity);
-                }
-            }
+
             
             // Record payment
             Payment::create([
