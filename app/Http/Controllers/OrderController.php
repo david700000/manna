@@ -192,7 +192,7 @@ class OrderController extends Controller
                 'message' => 'SYSTEM: Customer confirmed order delivery.'
             ]);
 
-            $admins = \App\Models\User::whereIn('role', ['admin', 'root'])->get();
+            $admins = \App\Models\User::whereNotIn('role', ['customer'])->get();
             foreach ($admins as $adminUser) {
                 (new \App\Notifications\ChatNotification([
                     'name' => 'System',

@@ -68,7 +68,7 @@ class PublicController extends Controller
         ];
 
         try {
-            $admins = \App\Models\User::whereIn('role', ['admin', 'root'])->get();
+            $admins = \App\Models\User::whereNotIn('role', ['customer'])->get();
             foreach ($admins as $adminUser) {
                 (new \App\Notifications\ContactMessageNotification($messageData))->send($adminUser);
             }

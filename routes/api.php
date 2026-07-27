@@ -75,7 +75,7 @@ Route::get('/test-email/{email}', function ($email) {
 });
 
 Route::get('/debug-admins', function () {
-    $admins = \App\Models\User::whereIn('role', ['admin', 'root'])->get(['id', 'name', 'email', 'role']);
+    $admins = \App\Models\User::whereNotIn('role', ['customer'])->get(['id', 'name', 'email', 'role']);
     return response()->json($admins);
 });
 
