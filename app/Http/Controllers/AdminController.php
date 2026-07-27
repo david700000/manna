@@ -202,6 +202,12 @@ class AdminController extends Controller
         ]);
 
         $oldStatus = $order->status;
+        
+        // Auto-mark as paid if admin manually moves from pending to processing
+        if ($oldStatus === 'pending' && $validated['status'] === 'processing') {
+            $order->payment_status = 'paid';
+        }
+
         $order->update($validated);
         
         if ($oldStatus !== $validated['status']) {
