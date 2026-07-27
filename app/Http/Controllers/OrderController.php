@@ -233,6 +233,18 @@ class OrderController extends Controller
                 ->increment('stock', $item->quantity);
         }
 
+        // ── Auto-verify unpaid orders before cancelling to prevent missed refunds ──
+        if ($order->payment_status === 'unpaid') {
+            try {
+                $paymentController = new PaymentController();
+                if ($paymentController->verifyOrderPaymentsInternal($order)) {
+                    $order = $order->fresh(); // Reload because status is now 'paid'
+                }
+            } catch (\Throwable $e) {
+                // Ignore verification errors during cancel
+            }
+        }
+
         // ── Trigger refund if the order was already paid ───────────────────
         $refundMessage = null;
         if ($order->payment_status === 'paid') {

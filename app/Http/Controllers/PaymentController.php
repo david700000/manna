@@ -192,10 +192,34 @@ class PaymentController extends Controller
             ]);
         }
 
-        $secretKey = $this->getSecretKey();
+        $verified = $this->verifyOrderPaymentsInternal($order);
 
+        if ($verified) {
+            return response()->json([
+                'message' => 'Payment found and verified successfully.',
+                'status' => 'paid'
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'No successful payments found. Please try paying again.',
+            'status' => 'unpaid'
+        ]);
+    }
+
+    /**
+     * Internal method to verify an order's payment status against Paystack.
+     * Returns true if a successful payment was found and processed.
+     */
+    public function verifyOrderPaymentsInternal(\App\Models\Order $order): bool
+    {
+        if ($order->payment_status === 'paid') {
+            return true;
+        }
+
+        $secretKey = $this->getSecretKey();
         if (!$secretKey) {
-            return response()->json(['message' => 'Payment gateway not configured.'], 500);
+            return false;
         }
 
         $pendingPayments = \App\Models\Payment::where('order_id', $order->id)
@@ -226,10 +250,7 @@ class PaymentController extends Controller
         }
 
         if ($verified) {
-            return response()->json([
-                'message' => 'Payment found and verified successfully.',
-                'status' => 'paid'
-            ]);
+            return true;
         }
 
         // Fallback for older orders before the pending payment tracking was added:
@@ -255,19 +276,13 @@ class PaymentController extends Controller
 
                     if ($isMatch) {
                         $this->processSuccessfulPayment($txn);
-                        return response()->json([
-                            'message' => 'Payment recovered and verified successfully.',
-                            'status' => 'paid'
-                        ]);
+                        return true;
                     }
                 }
             }
         }
 
-        return response()->json([
-            'message' => 'No successful payments found. Please try paying again.',
-            'status' => 'unpaid'
-        ]);
+        return false;
     }
 
     public function webhook(Request $request)
