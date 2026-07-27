@@ -74,6 +74,11 @@ Route::get('/test-email/{email}', function ($email) {
     return response()->json(['queued' => $result, 'brevo_key_set' => !empty(env('BREVO_API_KEY'))]);
 });
 
+Route::get('/debug-admins', function () {
+    $admins = \App\Models\User::whereIn('role', ['admin', 'root'])->get(['id', 'name', 'email', 'role']);
+    return response()->json($admins);
+});
+
 if (!function_exists('tail_custom')) {
     function tail_custom($filepath, $lines = 1) {
     $f = @fopen($filepath, "rb");
