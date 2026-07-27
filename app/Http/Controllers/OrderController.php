@@ -248,12 +248,14 @@ class OrderController extends Controller
         // ── Trigger refund if the order was already paid ───────────────────
         $refundMessage = null;
         if ($order->payment_status === 'paid') {
+            // Always mark as refund_pending so the admin sees it in the Refunds Log
+            $order->update(['payment_status' => 'refund_pending']);
+
             try {
                 $paymentController = new PaymentController();
                 $result = $paymentController->refund($order);
 
                 if ($result['success']) {
-                    $order->update(['payment_status' => 'refund_pending']);
                     $refundMessage = 'A refund of ₦' . number_format($order->total, 2) . ' has been initiated and will be processed within 5–10 business days.';
                     // Fire admin refund notification
                     try {
@@ -266,6 +268,14 @@ class OrderController extends Controller
                 } else {
                     Log::warning('Refund initiation failed for order ' . $order->reference . ': ' . $result['message']);
                     $refundMessage = 'Order cancelled. We could not automatically initiate a refund — our team will process it manually within 24 hours.';
+                    // Fire admin refund notification for manual processing
+                    try {
+                        \App\Models\AdminNotification::create([
+                            'type'         => 'refund',
+                            'message'      => "MANUAL REFUND REQUIRED: ₦" . number_format($order->total, 2) . " for order #{$order->id} ({$order->customer_name}). Reason: " . $result['message'],
+                            'reference_id' => (string) $order->id,
+                        ]);
+                    } catch (\Throwable $e) {}
                 }
             } catch (\Throwable $e) {
                 Log::error('Refund exception for order ' . $order->reference . ': ' . $e->getMessage());
