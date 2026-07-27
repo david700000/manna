@@ -206,10 +206,14 @@ class AdminController extends Controller
         
         if ($oldStatus !== $validated['status']) {
             $history = $order->status_history ?? [];
-            $history[] = [
+            $historyItem = [
                 'status' => $validated['status'],
                 'timestamp' => now()->toIso8601String(),
             ];
+            if ($validated['status'] === 'cancelled') {
+                $historyItem['note'] = 'Cancelled by Admin';
+            }
+            $history[] = $historyItem;
             $order->status_history = $history;
             $order->save();
         }

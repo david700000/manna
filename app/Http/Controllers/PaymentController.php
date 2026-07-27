@@ -415,11 +415,21 @@ class PaymentController extends Controller
     private function processRefundWebhook(array $data): void
     {
         $refundId = $data['id'] ?? null;
-        if (!$refundId) return;
+        $txRef = $data['transaction_reference'] ?? null;
 
-        $payment = Payment::where('refund_reference', $refundId)->first();
+        if (!$refundId && !$txRef) return;
+
+        $payment = Payment::where(function ($query) use ($refundId, $txRef) {
+            if ($refundId) {
+                $query->orWhere('refund_reference', $refundId);
+            }
+            if ($txRef) {
+                $query->orWhere('transaction_reference', $txRef);
+            }
+        })->first();
+
         if (!$payment) {
-            Log::warning('Refund webhook: no payment found for refund id ' . $refundId);
+            Log::warning('Refund webhook: no payment found for refund data', ['id' => $refundId, 'tx_ref' => $txRef]);
             return;
         }
 
@@ -445,10 +455,23 @@ class PaymentController extends Controller
             } catch (\Throwable $e) {
                 Log::warning('Refund confirmation email failed: ' . $e->getMessage());
             }
+
+            // Notify Admin
+            try {
+                if ($status === 'processed') {
+                    \App\Models\AdminNotification::create([
+                        'type'         => 'refund',
+                        'message'      => "Refund of ₦" . number_format($payment->refund_amount, 2) . " processed for order #{$order->id} ({$order->reference}).",
+                        'reference_id' => (string) $order->id,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Refund admin notification failed: ' . $e->getMessage());
+            }
         }
 
         Log::info('Paystack Refund Webhook Processed', [
-            'refund_id' => $refundId,
+            'refund_id' => $refundId ?? $txRef,
             'status'    => $refundStatus,
         ]);
     }

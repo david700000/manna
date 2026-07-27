@@ -216,6 +216,7 @@ class OrderController extends Controller
         $history[] = [
             'status'    => 'cancelled',
             'timestamp' => now()->toIso8601String(),
+            'note'      => 'Cancelled by Customer',
         ];
 
         $order->update([
