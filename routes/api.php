@@ -64,6 +64,16 @@ Route::get('/debug-payments', function () {
     return response()->json($payments);
 });
 
+Route::get('/test-email/{email}', function ($email) {
+    $result = \App\Services\BrevoMailService::send(
+        $email,
+        'Test Admin',
+        'Test Email from Manna Bridal',
+        '<h2>If you see this, email is working!</h2><p>Sent at: ' . now() . '</p>'
+    );
+    return response()->json(['queued' => $result, 'brevo_key_set' => !empty(env('BREVO_API_KEY'))]);
+});
+
 if (!function_exists('tail_custom')) {
     function tail_custom($filepath, $lines = 1) {
     $f = @fopen($filepath, "rb");

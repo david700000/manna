@@ -55,7 +55,7 @@ class ChatController extends Controller
 
         // Send notification to admin
         try {
-            $admins = \App\Models\User::where('role', 'admin')->get();
+            $admins = \App\Models\User::whereIn('role', ['admin', 'root'])->get();
             $messageData = [
                 'name' => $user ? $user->name : 'Guest Customer',
                 'email' => $user ? $user->email : 'guest@mannabridal.com',

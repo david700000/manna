@@ -391,7 +391,7 @@ class PaymentController extends Controller
                     (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
                 }
                 
-                $admins = \App\Models\User::where('role', 'admin')->get();
+                $admins = \App\Models\User::whereIn('role', ['admin', 'root'])->get();
                 foreach ($admins as $adminUser) {
                     (new \App\Notifications\OrderPlacedAdminNotification($order))->send($adminUser);
                 }
