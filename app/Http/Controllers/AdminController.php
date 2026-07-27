@@ -186,8 +186,7 @@ class AdminController extends Controller
     // --- Order Management ---
     public function indexOrders(Request $request)
     {
-        \App\Models\Order::processDelayedOrders();
-        $orders = Order::with('items', 'user')->orderBy('created_at', 'desc')->get();
+        $orders = Order::with('user', 'items.product')->latest()->get();
         return response()->json($orders);
     }
 
