@@ -232,6 +232,38 @@ class PaymentController extends Controller
             ]);
         }
 
+        // Fallback for older orders before the pending payment tracking was added:
+        // Search Paystack's recent transactions for this exact customer email.
+        $recentTxnsResponse = Http::withToken($secretKey)->get($this->baseUrl . '/transaction', [
+            'perPage' => 50,
+            'page' => 1
+        ]);
+
+        if ($recentTxnsResponse->successful()) {
+            $txns = $recentTxnsResponse->json()['data'] ?? [];
+            foreach ($txns as $txn) {
+                // If it's successful and the email matches
+                if ($txn['status'] === 'success' && strtolower($txn['customer']['email']) === strtolower($order->customer_email)) {
+                    // Check if reference starts with the order reference
+                    $isMatch = false;
+                    
+                    if (str_starts_with($txn['reference'], $order->reference)) {
+                        $isMatch = true;
+                    } else if (isset($txn['metadata']['order_reference']) && $txn['metadata']['order_reference'] === $order->reference) {
+                        $isMatch = true;
+                    }
+
+                    if ($isMatch) {
+                        $this->processSuccessfulPayment($txn);
+                        return response()->json([
+                            'message' => 'Payment recovered and verified successfully.',
+                            'status' => 'paid'
+                        ]);
+                    }
+                }
+            }
+        }
+
         return response()->json([
             'message' => 'No successful payments found. Please try paying again.',
             'status' => 'unpaid'
