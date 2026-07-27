@@ -51,8 +51,13 @@ class OrderController extends Controller
             }
 
             // ── Calculate total and prepare items ──────────────────────────
+            $allFreeShipping = true;
             foreach ($validated['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
+
+                if (!$product->is_free_shipping) {
+                    $allFreeShipping = false;
+                }
 
                 $price = $product->price;
                 $totalAmount += $price * $item['quantity'];
@@ -83,11 +88,16 @@ class OrderController extends Controller
                 $user->save();
             }
 
-            $state = strtolower(trim($validated['state']));
-            $isLocalState = in_array($state, ['lagos', 'kwara']);
-            $feeKey = $isLocalState ? 'shipping_fee_lagos_kwara' : 'shipping_fee_other';
-            $defaultFee = $isLocalState ? 2000 : 4000;
-            $shippingFee = (float) (\App\Models\Setting::where('key', $feeKey)->value('value') ?? $defaultFee);
+            $shippingEnabled = \App\Models\Setting::where('key', 'shipping_enabled')->value('value') !== 'false';
+            $shippingFee = 0;
+
+            if ($shippingEnabled && !$allFreeShipping) {
+                $state = strtolower(trim($validated['state']));
+                $isLocalState = in_array($state, ['lagos', 'kwara']);
+                $feeKey = $isLocalState ? 'shipping_fee_lagos_kwara' : 'shipping_fee_other';
+                $defaultFee = $isLocalState ? 2000 : 4000;
+                $shippingFee = (float) (\App\Models\Setting::where('key', $feeKey)->value('value') ?? $defaultFee);
+            }
             
             $grandTotal = $totalAmount + $shippingFee;
 
