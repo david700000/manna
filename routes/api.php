@@ -79,6 +79,10 @@ Route::get('/debug-admins', function () {
     return response()->json($admins);
 });
 
+Route::get('/debug-notifs', function () {
+    return response()->json(\App\Models\AdminNotification::latest()->take(5)->get());
+});
+
 if (!function_exists('tail_custom')) {
     function tail_custom($filepath, $lines = 1) {
     $f = @fopen($filepath, "rb");
