@@ -151,12 +151,14 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $orders = $request->user()->orders()->with('items.product')->latest()->get();
+        \App\Models\Order::processDelayedOrders();
+        $orders = $request->user()->orders()->with('items.product')->orderBy('created_at', 'desc')->get();
         return response()->json($orders);
     }
 
     public function show(Request $request, $id)
     {
+        \App\Models\Order::processDelayedOrders();
         $order = $request->user()->orders()->with('items.product')->findOrFail($id);
         return response()->json($order);
     }

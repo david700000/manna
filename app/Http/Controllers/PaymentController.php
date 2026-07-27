@@ -358,12 +358,7 @@ class PaymentController extends Controller
         }
         
         if ($order && $order->payment_status !== 'paid') {
-            $history = is_array($order->status_history) ? $order->status_history : [];
-            $history[] = [
-                'status' => 'processing',
-                'timestamp' => now()->toIso8601String()
-            ];
-            $order->update(['payment_status' => 'paid', 'status' => 'processing', 'status_history' => $history]);
+            $order->update(['payment_status' => 'paid']);
             
 
             
