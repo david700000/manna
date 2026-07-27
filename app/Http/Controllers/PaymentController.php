@@ -68,6 +68,15 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Payment Error: ' . $errorMsg], 500);
         }
 
+        // Store this pending payment attempt so we can verify it later if webhook fails
+        \App\Models\Payment::create([
+            'order_id'              => $order->id,
+            'transaction_reference' => $attemptRef,
+            'amount'                => $order->total,
+            'status'                => 'pending',
+            'payment_method'        => 'paystack'
+        ]);
+
         return response()->json([
             'checkoutUrl'          => $initResponse->json()['data']['authorization_url'],
             'accessCode'           => $initResponse->json()['data']['access_code'],
@@ -166,6 +175,67 @@ class PaymentController extends Controller
         $this->processFailedPayment($data, $data['status']);
 
         return response()->json(['message' => 'Payment not successful.', 'status' => $data['status']], 400);
+    }
+
+    /**
+     * Verify all pending payment attempts for a specific order.
+     * This acts as a manual fallback if the webhook fails to arrive.
+     */
+    public function verifyOrderPayments(Request $request, $orderId)
+    {
+        $order = $request->user()->orders()->findOrFail($orderId);
+
+        if ($order->payment_status === 'paid') {
+            return response()->json([
+                'message' => 'Order is already paid.',
+                'status' => 'paid'
+            ]);
+        }
+
+        $secretKey = $this->getSecretKey();
+
+        if (!$secretKey) {
+            return response()->json(['message' => 'Payment gateway not configured.'], 500);
+        }
+
+        $pendingPayments = \App\Models\Payment::where('order_id', $order->id)
+            ->where('status', 'pending')
+            ->whereNotNull('transaction_reference')
+            ->get();
+
+        $verified = false;
+
+        foreach ($pendingPayments as $payment) {
+            $verifyResponse = Http::withToken($secretKey)->get($this->baseUrl . '/transaction/verify/' . $payment->transaction_reference);
+            
+            if ($verifyResponse->successful()) {
+                $data = $verifyResponse->json()['data'];
+                if ($data['status'] === 'success') {
+                    // This will update the order to paid and process stock
+                    $this->processSuccessfulPayment($data);
+                    
+                    // Mark this specific payment as successful
+                    $payment->update(['status' => 'paid']);
+                    
+                    $verified = true;
+                    break;
+                } else if ($data['status'] === 'failed' || $data['status'] === 'abandoned') {
+                    $payment->update(['status' => 'failed']);
+                }
+            }
+        }
+
+        if ($verified) {
+            return response()->json([
+                'message' => 'Payment found and verified successfully.',
+                'status' => 'paid'
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'No successful payments found. Please try paying again.',
+            'status' => 'unpaid'
+        ]);
     }
 
     public function webhook(Request $request)

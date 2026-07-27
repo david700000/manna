@@ -107,8 +107,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index']);
     Route::post('/wishlist/toggle', [\App\Http\Controllers\WishlistController::class, 'toggle']);
 
-    // Payment Route
+    // Payments
     Route::post('/payments/{orderId}/initialize', [\App\Http\Controllers\PaymentController::class, 'initialize']);
+    Route::post('/orders/{id}/verify-payment', [\App\Http\Controllers\PaymentController::class, 'verifyOrderPayments']);
     Route::get('/payments/{reference}/verify', [\App\Http\Controllers\PaymentController::class, 'verify']);
 
     // Customer Cloudinary Upload Signature (for inquiry/chat image uploads)
