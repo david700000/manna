@@ -84,7 +84,10 @@ class OrderController extends Controller
             }
 
             $state = strtolower(trim($validated['state']));
-            $shippingFee = ($state === 'lagos' || $state === 'kwara') ? 2000 : 4000;
+            $isLocalState = in_array($state, ['lagos', 'kwara']);
+            $feeKey = $isLocalState ? 'shipping_fee_lagos_kwara' : 'shipping_fee_other';
+            $defaultFee = $isLocalState ? 2000 : 4000;
+            $shippingFee = (float) (\App\Models\Setting::where('key', $feeKey)->value('value') ?? $defaultFee);
             
             $grandTotal = $totalAmount + $shippingFee;
 

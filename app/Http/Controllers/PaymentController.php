@@ -313,36 +313,13 @@ class PaymentController extends Controller
             $order = Order::where('reference', $data['reference'])->first();
         }
 
+        // A failed/abandoned payment should NOT cancel the order.
+        // Keep it as unpaid so the customer can retry from the Account page.
         if ($order && $order->payment_status !== 'paid') {
-            $history = is_array($order->status_history) ? $order->status_history : [];
-            $history[] = [
-                'status'    => 'cancelled',
-                'timestamp' => now()->toIso8601String(),
-            ];
-            $order->update([
-                'payment_status' => 'failed',
-                'status'         => 'cancelled',
-                'status_history' => $history,
+            Log::info('Payment failed/abandoned for order ' . ($order->reference ?? '?') . ' — keeping order unpaid for retry.', [
+                'paystack_status' => $statusStr,
             ]);
-
-            Payment::create([
-                'order_id'              => $order->id,
-                'monnify_reference'     => null,
-                'transaction_reference' => $data['reference'],
-                'amount'                => ($data['amount'] ?? 0) / 100,
-                'status'                => 'failed',
-                'payment_method'        => $data['channel'] ?? 'card',
-                'raw_response'          => json_encode($data),
-            ]);
-
-            try {
-                $order->load('user');
-                if ($order->user) {
-                    (new \App\Notifications\OrderStatusUpdate($order))->send($order->user);
-                }
-            } catch (\Throwable $e) {
-                Log::warning('Payment failed email failed: ' . $e->getMessage());
-            }
+            // Intentionally no status change and no notification.
         }
     }
 
