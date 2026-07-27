@@ -262,14 +262,14 @@ class AdminController extends Controller
     {
         $user = \App\Models\User::findOrFail($id);
         
+        // Root users can never be deleted
+        if ($user->role === 'root') {
+            return response()->json(['message' => 'Root admin accounts cannot be deleted.'], 403);
+        }
+
         // Prevent deleting oneself
         if ($user->id === auth()->id()) {
             return response()->json(['message' => 'You cannot delete yourself.'], 403);
-        }
-
-        // Prevent deleting root users unless the requester is also root
-        if ($user->role === 'root' && auth()->user()->role !== 'root') {
-            return response()->json(['message' => 'You cannot delete a root admin.'], 403);
         }
 
         $user->delete();
