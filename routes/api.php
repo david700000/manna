@@ -59,6 +59,11 @@ Route::get('/debug-logs', function () {
     return 'No logs found.';
 });
 
+Route::get('/debug-payments', function () {
+    $payments = \App\Models\Payment::latest()->take(10)->get();
+    return response()->json($payments);
+});
+
 if (!function_exists('tail_custom')) {
     function tail_custom($filepath, $lines = 1) {
     $f = @fopen($filepath, "rb");
