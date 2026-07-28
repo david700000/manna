@@ -504,7 +504,7 @@ class PaymentController extends Controller
     private function processRefundWebhook(array $data): void
     {
         $refundId = $data['id'] ?? null;
-        $txRef = $data['transaction_reference'] ?? null;
+        $txRef = $data['transaction']['reference'] ?? $data['transaction_reference'] ?? null;
 
         if (!$refundId && !$txRef) return;
 
