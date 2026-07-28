@@ -25,6 +25,7 @@ class OrderController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.size' => 'nullable|string|max:20',
+            'items.*.color' => 'nullable|string|max:50',
             'shipping_address' => 'required|string',
             'billing_address' => 'required|string',
             'customer_phone' => 'nullable|string',
@@ -77,6 +78,7 @@ class OrderController extends Controller
                     'price' => $price,
                     'quantity' => $item['quantity'],
                     'size' => $item['size'] ?? null,
+                    'color' => $item['color'] ?? null,
                     'image_url' => $firstImage,
                 ];
             }
