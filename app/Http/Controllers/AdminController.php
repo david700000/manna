@@ -41,6 +41,13 @@ class AdminController extends Controller
 
     public function storeProduct(Request $request)
     {
+        if ($request->has('sizes') && is_string($request->input('sizes'))) {
+            $request->merge(['sizes' => json_decode($request->input('sizes'), true) ?? []]);
+        }
+        if ($request->has('colors') && is_string($request->input('colors'))) {
+            $request->merge(['colors' => json_decode($request->input('colors'), true) ?? []]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -87,6 +94,13 @@ class AdminController extends Controller
     public function updateProduct(Request $request, $id)
     {
         $product = Product::findOrFail($id);
+
+        if ($request->has('sizes') && is_string($request->input('sizes'))) {
+            $request->merge(['sizes' => json_decode($request->input('sizes'), true) ?? []]);
+        }
+        if ($request->has('colors') && is_string($request->input('colors'))) {
+            $request->merge(['colors' => json_decode($request->input('colors'), true) ?? []]);
+        }
         
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
@@ -123,10 +137,14 @@ class AdminController extends Controller
 
         $validated['images'] = $imagePaths;
         if ($request->has('sizes')) {
-            $validated['sizes'] = $request->input('sizes', []);
+            $validated['sizes'] = is_array($request->input('sizes')) ? $request->input('sizes') : [];
+        } else {
+            $validated['sizes'] = [];
         }
         if ($request->has('colors')) {
-            $validated['colors'] = $request->input('colors', []);
+            $validated['colors'] = is_array($request->input('colors')) ? $request->input('colors') : [];
+        } else {
+            $validated['colors'] = [];
         }
         if ($request->has('is_free_shipping')) {
             $validated['is_free_shipping'] = in_array($request->input('is_free_shipping'), ['1', 1, 'true', true], true);
