@@ -52,6 +52,8 @@ class AdminController extends Controller
             'existing_images' => 'nullable|array',
             'sizes' => 'nullable|array',
             'sizes.*' => 'string|max:20',
+            'colors' => 'nullable|array',
+            'colors.*' => 'string|max:50',
             'is_free_shipping' => 'nullable|string',
         ]);
 
@@ -68,8 +70,9 @@ class AdminController extends Controller
         }
 
         $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
-        $validated['images'] = json_encode($imagePaths);
-        $validated['sizes'] = json_encode($request->input('sizes', []));
+        $validated['images'] = $imagePaths;
+        $validated['sizes'] = $request->input('sizes', []);
+        $validated['colors'] = $request->input('colors', []);
         if ($request->has('is_free_shipping')) {
             $validated['is_free_shipping'] = in_array($request->input('is_free_shipping'), ['1', 1, 'true', true], true);
         }
@@ -96,6 +99,8 @@ class AdminController extends Controller
             'existing_images' => 'nullable|array',
             'sizes' => 'nullable|array',
             'sizes.*' => 'string|max:20',
+            'colors' => 'nullable|array',
+            'colors.*' => 'string|max:50',
             'is_free_shipping' => 'nullable|string',
         ]);
 
@@ -116,9 +121,12 @@ class AdminController extends Controller
             $validated['slug'] = Str::slug($validated['name']) . '-' . uniqid();
         }
 
-        $validated['images'] = json_encode($imagePaths);
+        $validated['images'] = $imagePaths;
         if ($request->has('sizes')) {
-            $validated['sizes'] = json_encode($request->input('sizes', []));
+            $validated['sizes'] = $request->input('sizes', []);
+        }
+        if ($request->has('colors')) {
+            $validated['colors'] = $request->input('colors', []);
         }
         if ($request->has('is_free_shipping')) {
             $validated['is_free_shipping'] = in_array($request->input('is_free_shipping'), ['1', 1, 'true', true], true);
@@ -148,7 +156,7 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string|max:1000',
-            'sort_order' => 'integer|default:0'
+            'sort_order' => 'nullable|integer'
         ]);
 
         $validated['slug'] = Str::slug($validated['name']);

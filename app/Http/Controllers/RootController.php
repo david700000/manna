@@ -315,6 +315,7 @@ class RootController extends Controller
                 $products = array_map(function($p) {
                     if (isset($p['images']) && is_array($p['images'])) $p['images'] = json_encode($p['images']);
                     if (isset($p['sizes']) && is_array($p['sizes'])) $p['sizes'] = json_encode($p['sizes']);
+                    if (isset($p['colors']) && is_array($p['colors'])) $p['colors'] = json_encode($p['colors']);
                     return $p;
                 }, $data['products']);
                 \App\Models\Product::insert($products);
