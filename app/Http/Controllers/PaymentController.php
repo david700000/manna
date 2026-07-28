@@ -309,7 +309,11 @@ class PaymentController extends Controller
             $this->processSuccessfulPayment($event['data']);
         } else if ($event['event'] === 'charge.failed') {
             $this->processFailedPayment($event['data'], 'failed');
-        } else if ($event['event'] === 'refund.processed') {
+        } else if (in_array($event['event'], ['refund.processed', 'refund.failed', 'refund.pending'])) {
+            Log::info('Paystack Refund Webhook Received', [
+                'event' => $event['event'],
+                'data'  => $event['data'],
+            ]);
             $this->processRefundWebhook($event['data']);
         }
 
@@ -504,16 +508,26 @@ class PaymentController extends Controller
     private function processRefundWebhook(array $data): void
     {
         $refundId = $data['id'] ?? null;
-        $txRef = $data['transaction']['reference'] ?? $data['transaction_reference'] ?? null;
+        $txRef    = $data['transaction']['reference'] ?? $data['transaction_reference'] ?? null;
+        $refundRef = $data['reference'] ?? null;
 
-        if (!$refundId && !$txRef) return;
+        Log::info('Processing refund webhook', compact('refundId', 'txRef', 'refundRef', 'data'));
 
-        $payment = Payment::where(function ($query) use ($refundId, $txRef) {
+        if (!$refundId && !$txRef && !$refundRef) {
+            Log::warning('Refund webhook: missing all identifiers', ['data' => $data]);
+            return;
+        }
+
+        $payment = Payment::where(function ($query) use ($refundId, $txRef, $refundRef) {
             if ($refundId) {
                 $query->orWhere('refund_reference', $refundId);
+                $query->orWhere('refund_reference', (string) $refundId);
             }
             if ($txRef) {
                 $query->orWhere('transaction_reference', $txRef);
+            }
+            if ($refundRef) {
+                $query->orWhere('transaction_reference', $refundRef);
             }
         })->first();
 
@@ -522,9 +536,13 @@ class PaymentController extends Controller
             return;
         }
 
-        $status = $data['status'] ?? 'failed'; // 'processed' or 'failed'
-        $refundStatus = ($status === 'processed') ? 'success' : 'failed';
-        $orderPaymentStatus = ($status === 'processed') ? 'refunded' : 'refund_pending';
+        $status = strtolower($data['status'] ?? 'failed');
+        // Paystack may send 'processed', 'completed', or 'success' for a successful refund
+        $isSuccess = in_array($status, ['processed', 'completed', 'success']);
+        $refundStatus = $isSuccess ? 'success' : 'failed';
+        $orderPaymentStatus = $isSuccess ? 'refunded' : 'refund_pending';
+
+        Log::info('Refund webhook status resolved', compact('status', 'isSuccess', 'refundStatus'));
 
         $payment->update([
             'refund_status' => $refundStatus,
