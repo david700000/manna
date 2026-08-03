@@ -37,7 +37,7 @@ return new class extends Migration
     public function up(): void
     {
         foreach ($this->tables as $table) {
-            DB::statement("CREATE POLICY \"deny_all_api_access\" ON \"{$table}\" FOR ALL USING (false);");
+            DB::statement("CREATE POLICY \"allow_backend\" ON \"{$table}\" FOR ALL USING (current_user NOT IN ('anon', 'authenticated'));");
         }
     }
 
@@ -47,7 +47,7 @@ return new class extends Migration
     public function down(): void
     {
         foreach ($this->tables as $table) {
-            DB::statement("DROP POLICY IF EXISTS \"deny_all_api_access\" ON \"{$table}\";");
+            DB::statement("DROP POLICY IF EXISTS \"allow_backend\" ON \"{$table}\";");
         }
     }
 };
