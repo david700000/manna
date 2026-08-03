@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Notification;
 use App\Notifications\OrderStatusUpdate;
 use App\Notifications\MarketingOffer;
 use App\Models\ActivityLog;
+use Illuminate\Support\Facades\Cache;
 
 class AdminController extends Controller
 {
@@ -88,6 +89,8 @@ class AdminController extends Controller
 
         ActivityLog::log($request->user()->id, 'create_product', "Created product: {$product->name} (ID: {$product->id})", $request->ip());
 
+        Cache::forget('public_products');
+
         return response()->json($product, 201);
     }
 
@@ -153,6 +156,8 @@ class AdminController extends Controller
 
         ActivityLog::log($request->user()->id, 'update_product', "Updated product: {$product->name} (ID: {$product->id})", $request->ip());
 
+        Cache::forget('public_products');
+
         return response()->json($product);
     }
 
@@ -163,6 +168,8 @@ class AdminController extends Controller
         $product->delete();
 
         ActivityLog::log(request()->user()->id, 'delete_product', "Deleted product: {$name} (ID: {$id})", request()->ip());
+
+        Cache::forget('public_products');
 
         return response()->json(['message' => 'Product deleted']);
     }
@@ -182,6 +189,8 @@ class AdminController extends Controller
         $category = Category::create($validated);
 
         ActivityLog::log($request->user()->id, 'create_category', "Created category: {$category->name} (ID: {$category->id})", $request->ip());
+
+        Cache::forget('public_categories');
 
         return response()->json($category, 201);
     }
@@ -206,6 +215,8 @@ class AdminController extends Controller
 
         ActivityLog::log($request->user()->id, 'update_category', "Updated category: {$category->name} (ID: {$category->id})", $request->ip());
 
+        Cache::forget('public_categories');
+
         return response()->json($category);
     }
 
@@ -216,6 +227,8 @@ class AdminController extends Controller
         $category->delete();
 
         ActivityLog::log(request()->user()->id, 'delete_category', "Deleted category: {$name} (ID: {$id})", request()->ip());
+
+        Cache::forget('public_categories');
 
         return response()->json(['message' => 'Category deleted']);
     }
@@ -363,6 +376,8 @@ class AdminController extends Controller
             'cta'        => $request->input('cta') ?: null,
         ]);
 
+        Cache::forget('public_banners');
+
         return response()->json($banner, 201);
     }
 
@@ -390,12 +405,16 @@ class AdminController extends Controller
         if ($request->has('cta'))       $data['cta']        = $request->input('cta') ?: null;
 
         $banner->update($data);
+        
+        Cache::forget('public_banners');
+        
         return response()->json($banner->fresh());
     }
 
     public function destroyBanner($id)
     {
         \App\Models\Banner::destroy($id);
+        Cache::forget('public_banners');
         return response()->json(['message' => 'deleted']);
     }
 
@@ -482,6 +501,8 @@ class AdminController extends Controller
             'sort_order' => (int)(\App\Models\HeroSlide::max('sort_order') ?? 0) + 1,
         ]);
 
+        Cache::forget('public_hero_slides');
+
         return response()->json($slide, 201);
     }
 
@@ -507,12 +528,16 @@ class AdminController extends Controller
         if ($request->has('dark'))      $data['is_dark']   = in_array($request->input('dark'), ['1', 1, 'true', true], true);
 
         $slide->update($data);
+        
+        Cache::forget('public_hero_slides');
+        
         return response()->json($slide->fresh());
     }
 
     public function destroyHeroSlide($id)
     {
         \App\Models\HeroSlide::destroy($id);
+        Cache::forget('public_hero_slides');
         return response()->json(['message' => 'deleted']);
     }
 
@@ -532,6 +557,8 @@ class AdminController extends Controller
             $setting->save();
         }
 
+        Cache::forget('public_settings');
+
         return response()->json(['message' => 'Shipping settings updated']);
     }
 
@@ -544,6 +571,9 @@ class AdminController extends Controller
         $setting = \App\Models\Setting::firstOrNew(['key' => 'theme_colors']);
         $setting->value = $validated['theme_colors'];
         $setting->save();
+        
+        Cache::forget('public_settings');
+        
         return response()->json(['message' => 'Theme updated']);
     }
 

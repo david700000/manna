@@ -8,22 +8,27 @@ use App\Models\Category;
 use App\Models\Banner;
 use App\Models\HeroSlide;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
 
 class PublicController extends Controller
 {
     public function products(Request $request)
     {
-        $query = Product::with('category')->where('status', 'active');
-
         if ($request->has('search') && $request->search !== '') {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
+            return response()->json(Product::with('category')
+                ->where('status', 'active')
+                ->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                })->get());
         }
 
-        return response()->json($query->get());
+        $products = Cache::remember('public_products', 3600, function () {
+            return Product::with('category')->where('status', 'active')->get();
+        });
+
+        return response()->json($products);
     }
 
     public function product($slug)
@@ -34,22 +39,33 @@ class PublicController extends Controller
 
     public function categories()
     {
-        return response()->json(Category::orderBy('sort_order')->get());
+        $categories = Cache::remember('public_categories', 3600, function () {
+            return Category::orderBy('sort_order')->get();
+        });
+        return response()->json($categories);
     }
 
     public function banners()
     {
-        return response()->json(Banner::where('status', 'active')->get());
+        $banners = Cache::remember('public_banners', 3600, function () {
+            return Banner::where('status', 'active')->get();
+        });
+        return response()->json($banners);
     }
 
     public function heroSlides()
     {
-        return response()->json(HeroSlide::orderBy('sort_order')->get());
+        $slides = Cache::remember('public_hero_slides', 3600, function () {
+            return HeroSlide::orderBy('sort_order')->get();
+        });
+        return response()->json($slides);
     }
 
     public function settings()
     {
-        $settings = Setting::all()->pluck('value', 'key');
+        $settings = Cache::remember('public_settings', 3600, function () {
+            return Setting::all()->pluck('value', 'key');
+        });
         return response()->json($settings);
     }
 
