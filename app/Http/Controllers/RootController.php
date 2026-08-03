@@ -267,8 +267,17 @@ class RootController extends Controller
         return response()->json($data)->header('Content-Disposition', 'attachment; filename="manna_backup_' . date('Y-m-d_H-i-s') . '.json"');
     }
 
+    /**
+     * Restore the database from a JSON backup file exported via exportDatabase().
+     *
+     * NOTE: This method uses raw Model::insert() for performance, which bypasses
+     * Eloquent mutators (e.g. password hashing, cast transforms). This is intentional —
+     * the backup already contains hashed passwords and pre-encoded JSON columns.
+     * Do NOT pass unverified or externally sourced backup files to this endpoint.
+     */
     public function importDatabase(Request $request)
     {
+
         if ($request->user()->role !== 'root') {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
@@ -509,14 +518,22 @@ class RootController extends Controller
             'message' => 'required|string',
         ]);
 
-        $users = User::all();
-        $notification = new MarketingOffer($validated);
-        foreach ($users as $user) {
-            try { $notification->send($user); } catch (\Throwable $e) {}
-        }
+        $count = User::count();
 
-        return response()->json(['message' => 'Broadcast sent to ' . $users->count() . ' users (including admins).']);
+        // Defer heavy email sending until after the HTTP response is delivered
+        // to prevent Render's 30-second gateway timeout from killing the request.
+        dispatch_after_response(function () use ($validated) {
+            User::chunk(100, function ($users) use ($validated) {
+                $notification = new MarketingOffer($validated);
+                foreach ($users as $user) {
+                    try { $notification->send($user); } catch (\Throwable $e) {}
+                }
+            });
+        });
+
+        return response()->json(['message' => 'Broadcast is being sent to ' . $count . ' users (including admins).']);
     }
+
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

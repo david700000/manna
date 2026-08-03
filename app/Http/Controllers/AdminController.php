@@ -224,9 +224,24 @@ class AdminController extends Controller
     // --- Order Management ---
     public function indexOrders(Request $request)
     {
-        $orders = Order::with('user', 'items.product')->latest()->get();
-        return response()->json($orders);
+        $perPage = (int) $request->query('per_page', 100);
+        $perPage = min($perPage, 500); // cap at 500 to prevent memory issues
+
+        $orders = Order::with('user', 'items.product')
+            ->latest()
+            ->paginate($perPage);
+
+        return response()->json([
+            'data' => $orders->items(),
+            'meta' => [
+                'current_page' => $orders->currentPage(),
+                'last_page'    => $orders->lastPage(),
+                'per_page'     => $orders->perPage(),
+                'total'        => $orders->total(),
+            ],
+        ]);
     }
+
 
     public function updateOrderStatus(Request $request, $id)
     {
@@ -540,14 +555,22 @@ class AdminController extends Controller
             'message' => 'required|string',
         ]);
 
-        $users = User::all();
-        $notification = new MarketingOffer($validated);
-        foreach ($users as $user) {
-            try { $notification->send($user); } catch (\Throwable $e) {}
-        }
+        $count = User::count();
 
-        return response()->json(['message' => 'Marketing offer sent to ' . $users->count() . ' users.']);
+        // Defer the heavy sending work until after the HTTP response is delivered,
+        // preventing Render's 30-second timeout from killing the request mid-send.
+        dispatch_after_response(function () use ($validated) {
+            User::chunk(100, function ($users) use ($validated) {
+                $notification = new MarketingOffer($validated);
+                foreach ($users as $user) {
+                    try { $notification->send($user); } catch (\Throwable $e) {}
+                }
+            });
+        });
+
+        return response()->json(['message' => 'Marketing offer is being sent to ' . $count . ' users.']);
     }
+
 
     public function storeUser(Request $request)
     {
