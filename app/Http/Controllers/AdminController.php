@@ -180,8 +180,12 @@ class AdminController extends Controller
         $validated['slug'] = Str::slug($validated['name']);
         
         $category = Category::create($validated);
+
+        ActivityLog::log($request->user()->id, 'create_category', "Created category: {$category->name} (ID: {$category->id})", $request->ip());
+
         return response()->json($category, 201);
     }
+
 
     public function updateCategory(Request $request, $id)
     {
@@ -199,15 +203,23 @@ class AdminController extends Controller
         }
 
         $category->update($validated);
+
+        ActivityLog::log($request->user()->id, 'update_category', "Updated category: {$category->name} (ID: {$category->id})", $request->ip());
+
         return response()->json($category);
     }
 
     public function destroyCategory($id)
     {
         $category = Category::findOrFail($id);
+        $name = $category->name;
         $category->delete();
+
+        ActivityLog::log(request()->user()->id, 'delete_category', "Deleted category: {$name} (ID: {$id})", request()->ip());
+
         return response()->json(['message' => 'Category deleted']);
     }
+
 
     // --- Order Management ---
     public function indexOrders(Request $request)
@@ -559,8 +571,14 @@ class AdminController extends Controller
             (new \App\Notifications\AdminInvitationNotification($tempPassword))->send($user);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Admin invitation email failed', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'User created but email failed: ' . $e->getMessage()], 500);
+            // Don't return a 500 here — user was created successfully. Warn the admin instead.
+            return response()->json([
+                'user'    => $user,
+                'message' => 'User created, but invitation email failed to send: ' . $e->getMessage() . '. Please share the login credentials manually.',
+                'warning' => true,
+            ], 201);
         }
+
 
         return response()->json([
             'user'    => $user,
