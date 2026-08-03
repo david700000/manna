@@ -86,7 +86,7 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DATABASE_URL', 'postgresql://store_8iid_user:yn59OIeNKdG85KR4izBoZt3CC33skksw@dpg-d943ent7vvec73e4922g-a.frankfurt-postgres.render.com/store_8iid'),
+            'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
