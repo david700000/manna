@@ -28,7 +28,9 @@ return [
         'http://localhost:5173',
     ])),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https://[a-z0-9\-]+\.netlify\.app$#',
+    ],
 
     'allowed_headers' => ['*'],
 
