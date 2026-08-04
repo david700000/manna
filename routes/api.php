@@ -24,7 +24,7 @@ Route::get('/hero-slides', [PublicController::class, 'heroSlides']);
 Route::get('/settings', [PublicController::class, 'settings']);
 
 // Paystack Webhook Route
-Route::post('/webhooks/paystack', [\App\Http\Controllers\PaymentController::class, 'webhook']);
+Route::post('/webhook/paystack', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 
 // Lightweight keep-alive ping for cron-job.org / UptimeRobot — returns minimal JSON
 Route::get('/ping', fn () => response()->json(['ok' => true]));
