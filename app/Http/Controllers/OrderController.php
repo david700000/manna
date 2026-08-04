@@ -93,7 +93,9 @@ class OrderController extends Controller
             $shippingEnabled = \App\Models\Setting::where('key', 'shipping_enabled')->value('value') !== 'false';
             $shippingFee = 0;
 
-            if ($shippingEnabled && !$allFreeShipping) {
+            if (str_contains(strtolower($validated['shipping_address'] ?? ''), 'store pickup')) {
+                $shippingFee = 0;
+            } elseif ($shippingEnabled && !$allFreeShipping) {
                 $state = strtolower(trim($validated['state']));
                 $isLocalState = in_array($state, ['lagos', 'kwara']);
                 $feeKey = $isLocalState ? 'shipping_fee_lagos_kwara' : 'shipping_fee_other';
