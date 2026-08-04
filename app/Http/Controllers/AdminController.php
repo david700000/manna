@@ -266,10 +266,14 @@ class AdminController extends Controller
         $order = Order::with('user')->findOrFail($id);
         
         $validated = $request->validate([
-            'status' => 'required|in:pending,processing,shipped,delivered,cancelled,paid,failed',
+            'status' => 'required|in:pending,processing,shipped,delivered,cancelled,paid,failed,ready_for_pickup,picked_up',
             'courier_name' => 'nullable|string|max:255',
             'tracking_number' => 'nullable|string|max:255',
             'tracking_url' => 'nullable|string|max:1000',
+            'pickup_info' => 'nullable|array',
+            'pickup_info.name' => 'nullable|string|max:255',
+            'pickup_info.phone' => 'nullable|string|max:255',
+            'pickup_info.timestamp' => 'nullable|string',
         ]);
 
         $oldStatus = $order->status;
