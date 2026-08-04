@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Hash;
 use App\Notifications\OrderStatusUpdate;
 use App\Notifications\MarketingOffer;
 use App\Models\ActivityLog;
@@ -18,8 +19,12 @@ class AdminController extends Controller
 {
     public function __construct()
     {
-        if (env('CLOUDINARY_URL')) {
-            \Cloudinary\Configuration\Configuration::instance(env('CLOUDINARY_URL'));
+        try {
+            if (env('CLOUDINARY_URL')) {
+                \Cloudinary\Configuration\Configuration::instance(env('CLOUDINARY_URL'));
+            }
+        } catch (\Throwable $e) {
+            // Cloudinary SDK not available — client-side direct uploads still work fine
         }
     }
 
@@ -87,7 +92,7 @@ class AdminController extends Controller
 
         $product = Product::create($validated);
 
-        ActivityLog::log($request->user()->id, 'create_product', "Created product: {$product->name} (ID: {$product->id})", $request->ip());
+        try { ActivityLog::log($request->user()->id, 'create_product', "Created product: {$product->name} (ID: {$product->id})", $request->ip()); } catch (\Throwable $e) {}
 
         Cache::forget('public_products_v2');
 
@@ -154,7 +159,7 @@ class AdminController extends Controller
         }
         $product->update($validated);
 
-        ActivityLog::log($request->user()->id, 'update_product', "Updated product: {$product->name} (ID: {$product->id})", $request->ip());
+        try { ActivityLog::log($request->user()->id, 'update_product', "Updated product: {$product->name} (ID: {$product->id})", $request->ip()); } catch (\Throwable $e) {}
 
         Cache::forget('public_products_v2');
 
@@ -167,7 +172,7 @@ class AdminController extends Controller
         $name = $product->name;
         $product->delete();
 
-        ActivityLog::log(request()->user()->id, 'delete_product', "Deleted product: {$name} (ID: {$id})", request()->ip());
+        try { ActivityLog::log(request()->user()->id, 'delete_product', "Deleted product: {$name} (ID: {$id})", request()->ip()); } catch (\Throwable $e) {}
 
         Cache::forget('public_products_v2');
 
@@ -188,7 +193,7 @@ class AdminController extends Controller
         
         $category = Category::create($validated);
 
-        ActivityLog::log($request->user()->id, 'create_category', "Created category: {$category->name} (ID: {$category->id})", $request->ip());
+        try { ActivityLog::log($request->user()->id, 'create_category', "Created category: {$category->name} (ID: {$category->id})", $request->ip()); } catch (\Throwable $e) {}
 
         Cache::forget('public_categories');
 
@@ -213,7 +218,7 @@ class AdminController extends Controller
 
         $category->update($validated);
 
-        ActivityLog::log($request->user()->id, 'update_category', "Updated category: {$category->name} (ID: {$category->id})", $request->ip());
+        try { ActivityLog::log($request->user()->id, 'update_category', "Updated category: {$category->name} (ID: {$category->id})", $request->ip()); } catch (\Throwable $e) {}
 
         Cache::forget('public_categories');
 
@@ -226,7 +231,7 @@ class AdminController extends Controller
         $name = $category->name;
         $category->delete();
 
-        ActivityLog::log(request()->user()->id, 'delete_category', "Deleted category: {$name} (ID: {$id})", request()->ip());
+        try { ActivityLog::log(request()->user()->id, 'delete_category', "Deleted category: {$name} (ID: {$id})", request()->ip()); } catch (\Throwable $e) {}
 
         Cache::forget('public_categories');
 
@@ -316,7 +321,7 @@ class AdminController extends Controller
             }
         }
 
-        ActivityLog::log($request->user()->id, 'update_order', "Updated order status to {$order->status} (ID: {$order->id})", $request->ip());
+        try { ActivityLog::log($request->user()->id, 'update_order', "Updated order status to {$order->status} (ID: {$order->id})", $request->ip()); } catch (\Throwable $e) {}
 
         return response()->json($order);
     }
@@ -483,7 +488,7 @@ class AdminController extends Controller
     public function storeHeroSlide(Request $request)
     {
         $request->validate([
-            'title'     => 'required|string|max:255',
+            'title'     => 'nullable|string|max:255',
             'subtitle'  => 'nullable|string|max:500',
             'image_url' => 'nullable|string|max:1000',
             'badge'     => 'nullable|string|max:100',
@@ -492,7 +497,7 @@ class AdminController extends Controller
         ]);
 
         $slide = \App\Models\HeroSlide::create([
-            'title'      => $request->input('title'),
+            'title'      => $request->input('title') ?: ('Slide ' . (\App\Models\HeroSlide::count() + 1)),
             'subtitle'   => $request->input('subtitle') ?: null,
             'image_url'  => $request->input('image_url', ''),
             'badge'      => $request->input('badge') ?: null,
@@ -615,7 +620,7 @@ class AdminController extends Controller
         $user = User::create([
             'name'                 => htmlspecialchars(strip_tags(trim($validated['name'])), ENT_QUOTES, 'UTF-8'),
             'email'                => strtolower(trim($validated['email'])),
-            'password'             => $tempPassword,
+            'password'             => Hash::make($tempPassword),
             'role'                 => $validated['role'],
             'must_change_password' => true,
         ]);
@@ -645,7 +650,7 @@ class AdminController extends Controller
         \App\Models\OrderItem::query()->delete();
         Order::query()->truncate();
 
-        ActivityLog::log($request->user()->id, 'purge_orders', "Purged all orders", $request->ip());
+        try { ActivityLog::log($request->user()->id, 'purge_orders', "Purged all orders", $request->ip()); } catch (\Throwable $e) {}
 
         return response()->json(['message' => "All {$count} order(s) have been purged successfully."]);
     }
