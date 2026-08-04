@@ -24,7 +24,7 @@ class PublicController extends Controller
                 })->get());
         }
 
-        $products = Cache::remember('public_products', 3600, function () {
+        $products = Cache::remember('public_products_v2', 3600, function () {
             return Product::where('status', 'active')
                 ->with('category')
                 ->latest()
