@@ -16,6 +16,9 @@ php artisan config:cache
 echo "Caching routes..."
 php artisan route:cache
 
+echo "Clearing application cache..."
+php artisan cache:clear
+
 echo "Clearing views..."
 php artisan view:clear
 

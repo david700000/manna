@@ -25,8 +25,13 @@ class PublicController extends Controller
         }
 
         $products = Cache::remember('public_products', 3600, function () {
-            return Product::with('category')->where('status', 'active')->get();
+            return Product::where('status', 'active')
+                ->with('category')
+                ->latest()
+                ->get()
+                ->toArray();
         });
+
         return response()->json($products);
     }
 
