@@ -141,5 +141,3 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/backup/import', [RootController::class, 'importDatabase']);
     });
 });
-/ /   t r i g g e r   d e p l o y  
- 
