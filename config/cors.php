@@ -19,9 +19,16 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_filter([env('FRONTEND_URL'), 'http://localhost:3000']),
+    'allowed_origins' => array_unique(array_filter([
+        env('FRONTEND_URL'),
+        'https://www.mannabridal.com',
+        'https://mannabridal.com',
+        'https://mannabridal.netlify.app',
+        'http://localhost:3000',
+        'http://localhost:5173',
+    ])),
 
-    'allowed_origins_patterns' => ['/^.*$/'],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
