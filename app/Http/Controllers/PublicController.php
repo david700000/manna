@@ -24,10 +24,7 @@ class PublicController extends Controller
                 })->get());
         }
 
-        $products = Cache::remember('public_products', 3600, function () {
-            return Product::with('category')->where('status', 'active')->get();
-        });
-
+        $products = Product::with('category')->where('status', 'active')->get();
         return response()->json($products);
     }
 
@@ -39,33 +36,25 @@ class PublicController extends Controller
 
     public function categories()
     {
-        $categories = Cache::remember('public_categories', 3600, function () {
-            return Category::orderBy('sort_order')->get();
-        });
+        $categories = Category::orderBy('sort_order')->get();
         return response()->json($categories);
     }
 
     public function banners()
     {
-        $banners = Cache::remember('public_banners', 3600, function () {
-            return Banner::where('status', 'active')->get();
-        });
+        $banners = Banner::where('status', 'active')->get();
         return response()->json($banners);
     }
 
     public function heroSlides()
     {
-        $slides = Cache::remember('public_hero_slides', 3600, function () {
-            return HeroSlide::orderBy('sort_order')->get();
-        });
+        $slides = HeroSlide::orderBy('sort_order')->get();
         return response()->json($slides);
     }
 
     public function settings()
     {
-        $settings = Cache::remember('public_settings', 3600, function () {
-            return Setting::all()->pluck('value', 'key');
-        });
+        $settings = Setting::all()->pluck('value', 'key');
         return response()->json($settings);
     }
 
