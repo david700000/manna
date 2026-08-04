@@ -101,7 +101,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        ActivityLog::log($user->id, 'register', 'User registered successfully', $request->ip());
+        try { ActivityLog::log($user->id, 'register', 'User registered successfully', $request->ip()); } catch (\Throwable $e) {}
 
         return response()->json([
             'access_token' => $token,
@@ -134,9 +134,9 @@ class AuthController extends Controller
             // Increment limiter only on failure
             RateLimiter::hit($key, 60);
             if ($user) {
-                ActivityLog::log($user->id, 'login_failed', 'Failed login attempt (invalid password)', $request->ip());
+                try { ActivityLog::log($user->id, 'login_failed', 'Failed login attempt (invalid password)', $request->ip()); } catch (\Throwable $e) {}
             } else {
-                ActivityLog::log(null, 'login_failed', 'Failed login attempt (user not found: ' . $validated['email'] . ')', $request->ip());
+                try { ActivityLog::log(null, 'login_failed', 'Failed login attempt (user not found: ' . $validated['email'] . ')', $request->ip()); } catch (\Throwable $e) {}
             }
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
@@ -149,7 +149,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        ActivityLog::log($user->id, 'login', 'User logged in successfully', $request->ip());
+        try { ActivityLog::log($user->id, 'login', 'User logged in successfully', $request->ip()); } catch (\Throwable $e) {}
 
         return response()->json([
             'access_token' => $token,
@@ -192,7 +192,7 @@ class AuthController extends Controller
         $user = $request->user();
         // Revoke only the current token
         $user->currentAccessToken()->delete();
-        ActivityLog::log($user->id, 'logout', 'User logged out', $request->ip());
+        try { ActivityLog::log($user->id, 'logout', 'User logged out', $request->ip()); } catch (\Throwable $e) {}
         return response()->json(['message' => 'Successfully logged out.']);
     }
 
@@ -289,7 +289,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'User not found.'], 404);
         }
 
-        $user->password = $request->password;
+        $user->password = Hash::make($request->password);
         $user->must_change_password = false;
         $user->save();
 
@@ -298,7 +298,7 @@ class AuthController extends Controller
 
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
-        ActivityLog::log($user->id, 'password_reset', 'User reset their password via OTP', $request->ip());
+        try { ActivityLog::log($user->id, 'password_reset', 'User reset their password via OTP', $request->ip()); } catch (\Throwable $e) {}
 
         return response()->json(['message' => 'Password has been successfully reset. Please log in with your new password.']);
     }
