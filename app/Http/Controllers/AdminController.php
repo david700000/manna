@@ -374,7 +374,7 @@ class AdminController extends Controller
         $banner = \App\Models\Banner::create([
             'title'      => $request->input('title'),
             'subtitle'   => $request->input('subtitle') ?: null,
-            'image_url'  => $request->input('image_url', ''),
+            'image_url'  => $request->input('image_url') ?? '',
             'status'     => $request->input('status', 'active'),
             'start_date' => $request->input('start') ?: null,
             'end_date'   => $request->input('end') ?: null,
@@ -403,7 +403,7 @@ class AdminController extends Controller
         $data = [];
         if ($request->has('title'))     $data['title']      = $request->input('title');
         if ($request->has('subtitle'))  $data['subtitle']   = $request->input('subtitle') ?: null;
-        if ($request->has('image_url')) $data['image_url']  = $request->input('image_url');
+        if ($request->has('image_url')) $data['image_url']  = $request->input('image_url') ?? '';
         if ($request->has('status'))    $data['status']     = $request->input('status');
         if ($request->has('start'))     $data['start_date'] = $request->input('start') ?: null;
         if ($request->has('end'))       $data['end_date']   = $request->input('end') ?: null;
@@ -499,7 +499,7 @@ class AdminController extends Controller
         $slide = \App\Models\HeroSlide::create([
             'title'      => $request->input('title') ?: ('Slide ' . (\App\Models\HeroSlide::count() + 1)),
             'subtitle'   => $request->input('subtitle') ?: null,
-            'image_url'  => $request->input('image_url', ''),
+            'image_url'  => $request->input('image_url') ?? '',
             'badge'      => $request->input('badge') ?: null,
             'cta_text'   => $request->input('cta') ?: null,
             'is_dark'    => in_array($request->input('dark'), ['1', 1, 'true', true], true),
@@ -527,7 +527,7 @@ class AdminController extends Controller
         $data = [];
         if ($request->has('title'))     $data['title']     = $request->input('title');
         if ($request->has('subtitle'))  $data['subtitle']  = $request->input('subtitle') ?: null;
-        if ($request->has('image_url')) $data['image_url'] = $request->input('image_url');
+        if ($request->has('image_url')) $data['image_url'] = $request->input('image_url') ?? '';
         if ($request->has('badge'))     $data['badge']     = $request->input('badge') ?: null;
         if ($request->has('cta'))       $data['cta_text']  = $request->input('cta') ?: null;
         if ($request->has('dark'))      $data['is_dark']   = in_array($request->input('dark'), ['1', 1, 'true', true], true);
