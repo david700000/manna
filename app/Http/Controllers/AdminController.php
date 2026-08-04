@@ -89,7 +89,7 @@ class AdminController extends Controller
 
         ActivityLog::log($request->user()->id, 'create_product', "Created product: {$product->name} (ID: {$product->id})", $request->ip());
 
-        Cache::forget('public_products');
+        Cache::forget('public_products_v2');
 
         return response()->json($product, 201);
     }
@@ -156,7 +156,7 @@ class AdminController extends Controller
 
         ActivityLog::log($request->user()->id, 'update_product', "Updated product: {$product->name} (ID: {$product->id})", $request->ip());
 
-        Cache::forget('public_products');
+        Cache::forget('public_products_v2');
 
         return response()->json($product);
     }
@@ -169,7 +169,7 @@ class AdminController extends Controller
 
         ActivityLog::log(request()->user()->id, 'delete_product', "Deleted product: {$name} (ID: {$id})", request()->ip());
 
-        Cache::forget('public_products');
+        Cache::forget('public_products_v2');
 
         return response()->json(['message' => 'Product deleted']);
     }
