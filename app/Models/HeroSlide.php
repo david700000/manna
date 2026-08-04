@@ -8,6 +8,10 @@ class HeroSlide extends Model
 {
     protected $fillable = ['title', 'subtitle', 'image_url', 'badge', 'cta_text', 'is_dark', 'sort_order'];
 
+    protected $casts = [
+        'is_dark' => 'boolean',
+    ];
+
     protected $appends = ['cta'];
 
     public function getCtaAttribute()

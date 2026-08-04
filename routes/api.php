@@ -141,3 +141,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/backup/import', [RootController::class, 'importDatabase']);
     });
 });
+Route::get('/logs', function () { return response(file_get_contents(storage_path('logs/laravel.log')))->header('Content-Type', 'text/plain'); });

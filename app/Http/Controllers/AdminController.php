@@ -502,7 +502,7 @@ class AdminController extends Controller
             'image_url'  => $request->input('image_url') ?? '',
             'badge'      => $request->input('badge') ?: null,
             'cta_text'   => $request->input('cta') ?: null,
-            'is_dark'    => in_array($request->input('dark'), ['1', 1, 'true', true], true),
+            'is_dark'    => in_array($request->input('dark'), ['1', 1, 'true', true], true) ? 'true' : 'false',
             'sort_order' => (int)(\App\Models\HeroSlide::max('sort_order') ?? 0) + 1,
         ]);
 
@@ -530,7 +530,7 @@ class AdminController extends Controller
         if ($request->has('image_url')) $data['image_url'] = $request->input('image_url') ?? '';
         if ($request->has('badge'))     $data['badge']     = $request->input('badge') ?: null;
         if ($request->has('cta'))       $data['cta_text']  = $request->input('cta') ?: null;
-        if ($request->has('dark'))      $data['is_dark']   = in_array($request->input('dark'), ['1', 1, 'true', true], true);
+        if ($request->has('dark'))      $data['is_dark']   = in_array($request->input('dark'), ['1', 1, 'true', true], true) ? 'true' : 'false';
 
         $slide->update($data);
         
