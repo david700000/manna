@@ -9,3 +9,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('orders:process-delayed')->cron('*/14 * * * *');
+
+// Cancel orders that are still unpaid after 24 hours (runs every hour)
+Schedule::command('orders:cancel-unpaid')->hourly();

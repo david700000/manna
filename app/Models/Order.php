@@ -10,12 +10,13 @@ class Order extends Model
         'reference', 'user_id', 'customer_name', 'customer_email', 'customer_phone',
         'subtotal', 'total', 'status', 'payment_status', 'payment_reference',
         'delivery_address', 'notes',
-        'courier_name', 'tracking_number', 'tracking_url', 'status_history'
+        'courier_name', 'tracking_number', 'tracking_url', 'status_history', 'pickup_info'
     ];
 
     protected $casts = [
         'delivery_address' => 'array',
         'status_history' => 'array',
+        'pickup_info' => 'array',
     ];
 
     public function items()
