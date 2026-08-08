@@ -64,9 +64,10 @@ class RootController extends Controller
         ]);
 
         $user = $request->user();
-        $user->password = $validated['password'];
-        $user->must_change_password = false;
-        $user->save();
+        $user->update([
+            'password'             => $validated['password'],
+            'must_change_password' => false,
+        ]);
 
         return response()->json([
             'message' => 'Password changed successfully.',
