@@ -626,7 +626,7 @@ class AdminController extends Controller
             'email'                => strtolower(trim($validated['email'])),
             'password'             => Hash::make($tempPassword),
             'role'                 => $validated['role'],
-            'must_change_password' => 'true',
+            'must_change_password' => \Illuminate\Support\Facades\DB::raw('TRUE'),
         ]);
 
         try {

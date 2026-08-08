@@ -319,7 +319,7 @@ class AuthController extends Controller
         // (avoids PostgreSQL boolean/integer mismatch and prevents double-hashing)
         $user->update([
             'password'             => $request->password,
-            'must_change_password' => false,
+            'must_change_password' => \Illuminate\Support\Facades\DB::raw('FALSE'),
         ]);
 
         // Revoke ALL active tokens — forces re-login everywhere
