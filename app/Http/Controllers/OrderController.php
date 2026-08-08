@@ -241,10 +241,17 @@ class OrderController extends Controller
             'status_history' => $history,
         ]);
 
-        // ── Restore stock for every item in the order ─────────────────────
-        foreach ($order->items as $item) {
-            Product::where('id', $item->product_id)
-                ->increment('stock', $item->quantity);
+        // ── Restore stock for every item in the order (inside transaction) ────
+        DB::beginTransaction();
+        try {
+            foreach ($order->items as $item) {
+                Product::where('id', $item->product_id)
+                    ->increment('stock', $item->quantity);
+            }
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Stock restore failed during cancel for order ' . $order->reference . ': ' . $e->getMessage());
         }
 
         // ── Auto-verify unpaid orders before cancelling to prevent missed refunds ──
@@ -317,23 +324,33 @@ class OrderController extends Controller
     public function rateProduct(Request $request, $id)
     {
         $validated = $request->validate([
-            'ratings' => 'required|array',
-            'ratings.*.product_id' => 'required|exists:products,id',
-            'ratings.*.rating' => 'required|integer|min:1|max:5',
-            'ratings.*.review' => 'nullable|string'
+            'ratings'                  => 'required|array',
+            'ratings.*.product_id'     => 'required|exists:products,id',
+            'ratings.*.rating'         => 'required|integer|min:1|max:5',
+            'ratings.*.review'         => 'nullable|string',
         ]);
 
-        $order = $request->user()->orders()->findOrFail($id);
+        $order = $request->user()->orders()->with('items')->findOrFail($id);
 
         if ($order->status !== 'delivered') {
             return response()->json(['message' => 'You can only rate delivered orders.'], 400);
         }
 
+        // Only allow rating products that are actually in this order
+        $orderProductIds = $order->items->pluck('product_id')->toArray();
+        foreach ($validated['ratings'] as $item) {
+            if (!in_array($item['product_id'], $orderProductIds)) {
+                return response()->json([
+                    'message' => 'Product ID ' . $item['product_id'] . ' is not part of this order.',
+                ], 422);
+            }
+        }
+
         foreach ($validated['ratings'] as $item) {
             \App\Models\ProductRating::updateOrCreate(
                 [
-                    'user_id' => $request->user()->id,
-                    'order_id' => $order->id,
+                    'user_id'    => $request->user()->id,
+                    'order_id'   => $order->id,
                     'product_id' => $item['product_id'],
                 ],
                 [

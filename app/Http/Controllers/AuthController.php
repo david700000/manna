@@ -170,6 +170,12 @@ class AuthController extends Controller
     public function updateProfile(Request $request)
     {
         $user = $request->user();
+
+        // Prevent profile updates until temporary password is changed
+        if ($user->must_change_password) {
+            return response()->json(['message' => 'You must change your temporary password before updating your profile.'], 403);
+        }
+
         $validated = $request->validate([
             'name'  => 'sometimes|string|max:255|regex:/^[\p{L}\s\'\-\.]+$/u',
             'email' => 'sometimes|string|email:rfc|max:255|unique:users,email,' . $user->id,
@@ -238,8 +244,10 @@ class AuthController extends Controller
             'otp'   => 'required|string|size:6',
         ]);
 
+        $email = strtolower(trim($request->email));
+
         $reset = DB::table('password_reset_tokens')
-            ->where('email', strtolower(trim($request->email)))
+            ->where('email', $email)
             ->first();
 
         if (!$reset || !Hash::check($request->otp, $reset->token)) {
@@ -248,9 +256,14 @@ class AuthController extends Controller
 
         // OTP expires after 10 minutes
         if (now()->diffInMinutes($reset->created_at) > 10) {
-            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
             return response()->json(['message' => 'OTP has expired. Please request a new one.'], 400);
         }
+
+        // Consume the OTP immediately — prevents replay attacks.
+        // Store a short-lived "verified" flag that resetPassword will check.
+        DB::table('password_reset_tokens')->where('email', $email)->delete();
+        Cache::put('password_reset_verified_' . $email, true, now()->addMinutes(10));
 
         return response()->json(['message' => 'OTP verified.', 'valid' => true]);
     }
@@ -270,33 +283,47 @@ class AuthController extends Controller
             'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
         ]);
 
-        $reset = DB::table('password_reset_tokens')
-            ->where('email', strtolower(trim($request->email)))
-            ->first();
+        $email = strtolower(trim($request->email));
 
-        if (!$reset || !Hash::check($request->otp, $reset->token)) {
-            return response()->json(['message' => 'Invalid or expired OTP.'], 400);
+        // Accept either the new cache-verified flag (post-verifyOtp) or a still-valid token
+        // (backward compat for clients that call resetPassword directly without verifyOtp).
+        $cacheKey    = 'password_reset_verified_' . $email;
+        $cacheValid  = Cache::get($cacheKey);
+
+        if (!$cacheValid) {
+            // Fallback: check the token directly (old flow / direct call)
+            $reset = DB::table('password_reset_tokens')->where('email', $email)->first();
+
+            if (!$reset || !Hash::check($request->otp, $reset->token)) {
+                return response()->json(['message' => 'Invalid or expired OTP.'], 400);
+            }
+
+            if (now()->diffInMinutes($reset->created_at) > 10) {
+                DB::table('password_reset_tokens')->where('email', $email)->delete();
+                return response()->json(['message' => 'OTP has expired. Please request a new one.'], 400);
+            }
+
+            // Consume the token now so it cannot be replayed
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
         }
 
-        // OTP expires after 10 minutes
-        if (now()->diffInMinutes($reset->created_at) > 10) {
-            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
-            return response()->json(['message' => 'OTP has expired. Please request a new one.'], 400);
-        }
-
-        $user = User::where('email', strtolower(trim($request->email)))->first();
+        $user = User::where('email', $email)->first();
         if (!$user) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
-        $user->password = Hash::make($request->password);
-        $user->must_change_password = false;
-        $user->save();
+        // Consume the cache flag (one-time use)
+        Cache::forget($cacheKey);
+
+        // Use update() so the 'hashed' cast and 'boolean' cast apply correctly
+        // (avoids PostgreSQL boolean/integer mismatch and prevents double-hashing)
+        $user->update([
+            'password'             => $request->password,
+            'must_change_password' => false,
+        ]);
 
         // Revoke ALL active tokens — forces re-login everywhere
         $user->tokens()->delete();
-
-        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
         try { ActivityLog::log($user->id, 'password_reset', 'User reset their password via OTP', $request->ip()); } catch (\Throwable $e) {}
 

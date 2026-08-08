@@ -166,6 +166,28 @@ class PaymentController extends Controller
 
         $data = $verifyResponse->json()['data'];
 
+        // Resolve the order from the transaction data before processing
+        $orderRef = null;
+        $metadata = $data['metadata'] ?? null;
+        if (is_string($metadata)) {
+            $metadata = json_decode($metadata, true);
+        }
+        if (is_array($metadata) && isset($metadata['order_reference'])) {
+            $orderRef = $metadata['order_reference'];
+        }
+        if (!$orderRef && isset($data['reference'])) {
+            $parts = explode('-', $data['reference']);
+            $orderRef = count($parts) >= 2 ? $parts[0] . '-' . $parts[1] : $data['reference'];
+        }
+
+        $order = \App\Models\Order::where('reference', $orderRef)->first()
+            ?? \App\Models\Order::where('reference', $data['reference'])->first();
+
+        // Ownership check — ensure the order belongs to the authenticated user
+        if ($order && $order->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
         if ($data['status'] === 'success') {
             $this->processSuccessfulPayment($data);
             return response()->json(['message' => 'Payment verified successfully.', 'status' => 'success']);
@@ -176,6 +198,7 @@ class PaymentController extends Controller
 
         return response()->json(['message' => 'Payment not successful.', 'status' => $data['status']], 400);
     }
+
 
     /**
      * Verify all pending payment attempts for a specific order.

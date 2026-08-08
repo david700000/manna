@@ -63,10 +63,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/customer/cloudinary-signature', [AdminController::class, 'customerCloudinarySignature']);
 
     // Admin routes (accessible by superadmin, manager, inventory AND root)
-    Route::get('/admin/chat', [\App\Http\Controllers\ChatController::class, 'adminGetConversations']);
-    Route::get('/admin/chat/thread', [\App\Http\Controllers\ChatController::class, 'adminGetThread']);
-    Route::post('/admin/chat/reply', [\App\Http\Controllers\ChatController::class, 'adminReply']);
     Route::middleware('role:superadmin,manager,inventory,staff,root')->prefix('admin')->group(function () {
+        Route::get('/chat', [\App\Http\Controllers\ChatController::class, 'adminGetConversations']);
+        Route::get('/chat/thread', [\App\Http\Controllers\ChatController::class, 'adminGetThread']);
+        Route::post('/chat/reply', [\App\Http\Controllers\ChatController::class, 'adminReply']);
         Route::get('/products', [AdminController::class, 'indexProducts']);
         Route::post('/products', [AdminController::class, 'storeProduct']);
         Route::put('/products/{id}', [AdminController::class, 'updateProduct']); // Uses POST with _method=PUT from frontend
@@ -139,6 +139,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Backup routes
         Route::get('/backup/export', [RootController::class, 'exportDatabase']);
         Route::post('/backup/import', [RootController::class, 'importDatabase']);
+
+        // Raw Laravel log viewer — root-only (was previously public)
+        Route::get('/raw-logs', function () {
+            return response(file_get_contents(storage_path('logs/laravel.log')))
+                ->header('Content-Type', 'text/plain');
+        });
     });
 });
-Route::get('/logs', function () { return response(file_get_contents(storage_path('logs/laravel.log')))->header('Content-Type', 'text/plain'); });
