@@ -49,7 +49,7 @@ class RootController extends Controller
         // All elevated roles must reset their password on next login
         $user->update([
             'role'                 => $validated['role'],
-            'must_change_password' => true,
+            'must_change_password' => 'true',
         ]);
 
         return response()->json(['message' => 'Role updated successfully.', 'user' => $user]);
@@ -66,7 +66,7 @@ class RootController extends Controller
         $user = $request->user();
         $user->update([
             'password'             => $validated['password'],
-            'must_change_password' => false,
+            'must_change_password' => 'false',
         ]);
 
         return response()->json([
